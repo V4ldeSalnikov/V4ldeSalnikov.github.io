@@ -1,0 +1,38 @@
+---
+import Base from './Base.astro';
+import Tag from '../components/Tag.astro';
+
+interface Props {
+  title: string;
+  description?: string;
+  pubDate: Date;
+  updated?: Date;
+  tags?: string[];
+}
+
+const { title, description, pubDate, updated, tags = [] } = Astro.props;
+const fmt = (d: Date) => d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+---
+
+<Base title={title} description={description}>
+  <article class="article py-12">
+    <header class="mb-6">
+      <h1 style="font-family: var(--font-serif); font-size: 2.25rem; line-height: 1.2; font-weight: 600; margin: 0;">
+        {title}
+      </h1>
+      {description && (
+        <p style="color: var(--color-fg-dim); font-style: italic; margin-top: 0.6rem;">{description}</p>
+      )}
+      <p style="color: var(--color-fg-dim); font-family: var(--font-sans); font-size: 0.85rem; margin-top: 0.8rem;">
+        <time datetime={pubDate.toISOString()}>{fmt(pubDate)}</time>
+        {updated && (<>{' '}· updated <time datetime={updated.toISOString()}>{fmt(updated)}</time></>)}
+      </p>
+      {tags.length > 0 && (
+        <p style="margin-top: 0.6rem; display: flex; gap: 0.4rem; flex-wrap: wrap;">
+          {tags.map((t) => <Tag>{t}</Tag>)}
+        </p>
+      )}
+    </header>
+    <slot />
+  </article>
+</Base>

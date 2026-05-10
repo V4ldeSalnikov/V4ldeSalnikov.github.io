@@ -1,0 +1,55 @@
+---
+interface Props {
+  href: string;
+  title: string;
+  description?: string;
+  pubDate?: Date;
+  tags?: string[];
+}
+const { href, title, description, pubDate, tags = [] } = Astro.props;
+const fmt = (d?: Date) =>
+  d?.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+---
+
+<article class="post-card">
+  <a href={href} class="plain">
+    <h3>{title}</h3>
+    {description && <p class="desc">{description}</p>}
+    <p class="meta">
+      {pubDate && <time datetime={pubDate.toISOString()}>{fmt(pubDate)}</time>}
+      {tags.length > 0 && <span>{tags.join(' · ')}</span>}
+    </p>
+  </a>
+</article>
+
+<style>
+  .post-card {
+    padding: 1.25rem 0;
+    border-bottom: 1px solid var(--color-line);
+  }
+  .post-card:last-child { border-bottom: 0; }
+  .post-card a { display: block; }
+  .post-card h3 {
+    font-family: var(--font-sans);
+    font-size: 1.1rem;
+    font-weight: 500;
+    color: var(--color-fg);
+    margin: 0;
+    transition: color 120ms ease;
+  }
+  .post-card a:hover h3 { color: var(--color-accent); }
+  .post-card .desc {
+    color: var(--color-fg-dim);
+    margin: 0.25rem 0 0;
+    font-size: 1rem;
+  }
+  .post-card .meta {
+    font-family: var(--font-sans);
+    font-size: 0.78rem;
+    color: var(--color-fg-muted);
+    margin: 0.5rem 0 0;
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+</style>

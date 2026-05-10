@@ -1,0 +1,30 @@
+---
+import Base from '../../layouts/Base.astro';
+import PostCard from '../../components/PostCard.astro';
+import { getCollection } from 'astro:content';
+
+const posts = (await getCollection('blog', ({ data }) => !data.draft))
+  .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
+---
+
+<Base title="Blog">
+  <section class="max-w-3xl mx-auto px-6 py-12">
+    <h1 style="font-family: var(--font-serif); font-size: 2rem; margin: 0 0 0.4rem;">Blog</h1>
+    <p style="color: var(--color-fg-dim); margin-bottom: 2.5rem;">
+      Long-form posts. Interactive figures and math where useful.
+    </p>
+    {posts.length === 0 ? (
+      <p style="color: var(--color-fg-dim); font-style: italic;">Nothing here yet.</p>
+    ) : (
+      posts.map((p) => (
+        <PostCard
+          href={`/blog/${p.id}/`}
+          title={p.data.title}
+          description={p.data.description}
+          pubDate={p.data.pubDate}
+          tags={p.data.tags}
+        />
+      ))
+    )}
+  </section>
+</Base>

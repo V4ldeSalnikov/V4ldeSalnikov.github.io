@@ -1,0 +1,33 @@
+---
+title: "Danish Wikipedia — Image, Caption, Context"
+description: "First large-scale Danish image–text dataset that preserves neighboring article context, not just a single caption."
+pubDate: 2025-09-15
+tags: ["vision-language", "datasets", "danish", "wikipedia"]
+featured: true
+demo: "https://huggingface.co/V4ldeLund"
+---
+
+The first large-scale **Danish image–text dataset** that keeps neighboring article
+context, not just a single caption.
+
+## The gap this fills
+
+Most Wikipedia-derived image–text datasets reduce each image to caption + alt-text,
+dropping the surrounding paragraph that usually disambiguates what the picture is
+actually showing. For English, the loss is recoverable from the sheer volume of
+data. For Danish — where total available image–text pairs are orders of magnitude
+smaller — every bit of context you throw away hurts downstream models.
+
+## What's preserved
+
+For each image extracted from Danish Wikipedia, the dataset stores:
+
+- The image URL and basic metadata.
+- The literal caption from the figure.
+- The **section heading** the image appears under.
+- The **neighboring paragraph(s)** surrounding the image, so models can learn
+  from longer-form image–text relationships rather than caption-only pairs.
+
+This makes it usable for tasks where the caption alone is ambiguous: a portrait
+captioned only with a name needs the surrounding article to know whether that
+person was a 17th-century theologian or a 20th-century footballer.

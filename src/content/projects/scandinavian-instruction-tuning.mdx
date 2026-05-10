@@ -1,0 +1,37 @@
+---
+title: "Scandinavian Instruction-Tuning Datasets"
+description: "Unified-format instruction-tuning data for Danish, Swedish, Norwegian Bokmål, and Nynorsk."
+pubDate: 2026-01-15
+tags: ["nlp", "datasets", "scandinavian", "llm"]
+featured: true
+demo: "https://huggingface.co/V4ldeLund"
+---
+
+A unified set of instruction-tuning datasets covering the four major Scandinavian
+written languages — **Danish, Swedish, Norwegian Bokmål, and Nynorsk** — published
+on Hugging Face. Combines machine-translated SFT pairs with human–LLM conversations
+in a single chat-`messages` schema that any modern fine-tuning stack can consume
+unchanged.
+
+## What's in it
+
+- A consistent `messages` schema across four languages, so language switching is a
+  data-loader filter rather than a code change.
+- Provenance flags for each example (translated vs. organic human–LLM), so you
+  can run experiments that ablate translation noise.
+- Hugging Face Datasets readers, with the splits sized to make small-model SFT
+  runs reproducible on a single GPU.
+
+## Preprocessing pipeline
+
+The dataset isn't just a dump — most of the work was the pipeline that produced it:
+
+- **Language identification** with `nb-nordic-lid` to filter out cross-contamination
+  between very-close Scandinavian languages (especially Bokmål vs. Nynorsk vs.
+  Danish, which trip up generic LID models).
+- **Filtering** for length, encoding artifacts, and obvious translation failures.
+- **Normalization** into the same chat `messages` schema regardless of source,
+  so downstream code doesn't need per-source adapters.
+
+The goal is to give small Scandinavian-language model efforts a more solid
+starting point than ad-hoc translated SFT mixes.

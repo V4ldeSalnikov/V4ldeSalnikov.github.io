@@ -1,0 +1,283 @@
+---
+import Base from '../layouts/Base.astro';
+
+const skills: Record<string, string[]> = {
+  Languages: ['Python', 'R', 'Matlab', 'C++', 'Haskell', 'Fortran'],
+  'ML & data': ['PyTorch', 'PyTorch Geometric', 'NumPy', 'pandas', 'scikit-learn', 'OpenCV', 'Matplotlib', 'Hugging Face Datasets'],
+  Cloud: ['Google Cloud (Compute Engine, Vertex AI)', 'Microsoft Azure', 'Hugging Face Hub'],
+  Spoken: ['Russian (native)', 'Ukrainian (native)', 'English (C1)', 'Swedish (A2)', 'German (A2)', 'Danish (A1)'],
+};
+
+const education = [
+  {
+    school: 'Technical University of Denmark',
+    degree: 'MSc — Human-Centered AI, Visual Computing',
+    when: 'Aug 2025 – Jun 2027',
+    where: 'Lyngby, Denmark',
+  },
+  {
+    school: 'Lund University',
+    degree: 'BSc — Mathematics',
+    when: 'Sep 2022 – Jun 2025',
+    where: 'Lund, Sweden',
+  },
+];
+
+type Job = {
+  role: string;
+  org: string;
+  when: string;
+  where: string;
+  summary: string;
+  bullets: string[];
+};
+
+const experience: Job[] = [
+  {
+    role: 'Student Researcher',
+    org: 'Aarhus University',
+    when: 'Mar 2026 – Present',
+    where: 'Aarhus, Denmark',
+    summary: 'Post-training of Danish foundation models.',
+    bullets: [
+      'Implemented and improved RLAIF algorithms for low-resource languages.',
+      'Built pipelines to generate synthetic instruction-tuning datasets for Danish.',
+    ],
+  },
+  {
+    role: 'Computer Vision Intern',
+    org: 'Kravi Analytics',
+    when: 'Mar 2025 – Present',
+    where: 'Lund, Sweden',
+    summary: 'Computer vision for ocean surveillance and maritime technology.',
+    bullets: [
+      'Fine-tuned a foundation model to F1 0.92 on a false-positive estimation task for ship detections.',
+      'Used LoRA to fine-tune a Stable Diffusion model and built an automated synthetic data generation pipeline.',
+    ],
+  },
+  {
+    role: 'Research Intern',
+    org: 'CVML group, Lund University',
+    when: 'Jul 2024 – May 2025',
+    where: 'Lund, Sweden',
+    summary: "Relative depth estimation from dense feature matches under Viktor Larsson — the foundation of my Bachelor's thesis.",
+    bullets: [
+      'Trained Graph Neural Networks and CNNs for relative depth estimation (PyTorch, PyTorch Geometric, OpenCV).',
+      'Compared the approach against existing methods together with PhD students in the group.',
+      'Surveyed state-of-the-art literature on relative depth estimation and feature matching.',
+    ],
+  },
+  {
+    role: 'AI Engineer Intern',
+    org: 'Hello Ada AI',
+    when: 'Oct 2024 – Feb 2025',
+    where: 'Copenhagen, Remote',
+    summary: 'AI-assisted programming platform for kids in Danish schools.',
+    bullets: [
+      'Evaluated speech-to-text models for Danish.',
+      'Implemented a text-to-code feature using reasoning LLMs, prompt engineering, and RAG.',
+      'Managed and deployed LLM models on Google Cloud (Compute Engine, Vertex AI).',
+    ],
+  },
+];
+
+const oss = [
+  {
+    title: 'Scandinavian Instruction-Tuning Datasets',
+    when: 'Jan 2026',
+    stack: 'Python · Hugging Face Datasets · pandas · nb-nordic-lid',
+    note: 'Unified-format instruction-tuning datasets for Danish, Swedish, Norwegian Bokmål, and Nynorsk. Preprocessing pipeline for language ID, filtering, and chat-schema normalization.',
+  },
+  {
+    title: 'SMK Image-Text',
+    when: 'Dec 2025',
+    stack: 'Python · Hugging Face Datasets · pandas · SMK API',
+    note: 'Image–text dataset from digitized SMK (Statens Museum for Kunst) artworks with Danish and English descriptions.',
+  },
+  {
+    title: 'Danish Wikipedia — Image, Caption, Context',
+    when: 'Sep 2025',
+    stack: 'Python · HF Datasets · pandas · Wikipedia API',
+    note: 'First large-scale Danish image–text dataset that keeps neighboring article context, not just a single caption.',
+  },
+];
+---
+
+<Base title="CV">
+  <section class="max-w-3xl mx-auto px-6 py-12">
+    <header class="cv-header">
+      <div>
+        <h1 style="font-family: var(--font-serif); font-size: 2rem; margin: 0;">Vladimir Salnikov</h1>
+        <p class="contact">
+          <a href="mailto:v4ldesalnikov@gmail.com">v4ldesalnikov@gmail.com</a>
+          <span class="dot">·</span>
+          <a href="https://github.com/V4ldeSalnikov">github</a>
+          <span class="dot">·</span>
+          <a href="https://huggingface.co/V4ldeLund">hugging face</a>
+          <span class="dot">·</span>
+          <a href="https://www.linkedin.com/in/vladimir-s-464ab5228/">linkedin</a>
+        </p>
+      </div>
+      <a href="/cv.pdf" class="plain pdf-link">Download PDF →</a>
+    </header>
+
+    <h2 class="cv-section">Education</h2>
+    <ul class="cv-list">
+      {education.map((e) => (
+        <li>
+          <div class="row">
+            <p><strong>{e.school}</strong> — {e.degree}</p>
+            <p class="when">{e.when}</p>
+          </div>
+          <p class="note">{e.where}</p>
+        </li>
+      ))}
+    </ul>
+
+    <h2 class="cv-section">Experience</h2>
+    <ul class="cv-list">
+      {experience.map((j) => (
+        <li class="job">
+          <div class="row">
+            <p><strong>{j.role}</strong> — {j.org}</p>
+            <p class="when">{j.when}</p>
+          </div>
+          <p class="where">{j.where}</p>
+          <p class="summary">{j.summary}</p>
+          <ul class="bullets">
+            {j.bullets.map((b) => <li>{b}</li>)}
+          </ul>
+        </li>
+      ))}
+    </ul>
+
+    <h2 class="cv-section">Open-source projects</h2>
+    <ul class="cv-list">
+      {oss.map((p) => (
+        <li>
+          <div class="row">
+            <p><strong>{p.title}</strong></p>
+            <p class="when">{p.when}</p>
+          </div>
+          <p class="stack">{p.stack}</p>
+          <p class="note">{p.note}</p>
+        </li>
+      ))}
+    </ul>
+
+    <h2 class="cv-section">Skills</h2>
+    <ul class="skills">
+      {Object.entries(skills).map(([k, vs]) => (
+        <li>
+          <span class="skill-key">{k}</span>
+          <span class="skill-val">{vs.join(' · ')}</span>
+        </li>
+      ))}
+    </ul>
+  </section>
+</Base>
+
+<style>
+  .cv-header {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 2rem;
+    padding-bottom: 1.25rem;
+    border-bottom: 1px solid var(--color-line);
+  }
+  .contact {
+    font-family: var(--font-sans);
+    font-size: 0.9rem;
+    color: var(--color-fg-dim);
+    margin: 0.4rem 0 0;
+  }
+  .contact .dot { color: var(--color-fg-muted); margin: 0 0.3rem; }
+  .pdf-link {
+    font-family: var(--font-sans);
+    font-size: 0.85rem;
+    margin-top: 0.4rem;
+  }
+
+  .cv-section {
+    font-family: var(--font-sans);
+    font-size: 0.72rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--color-fg-muted);
+    margin: 2.4rem 0 0.8rem;
+    font-weight: 500;
+  }
+
+  .cv-list { list-style: none; padding: 0; margin: 0 0 0.5rem; }
+  .cv-list > li { margin-bottom: 1.1rem; }
+  .cv-list > li.job { margin-bottom: 1.6rem; }
+
+  .row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 0.5rem;
+    align-items: baseline;
+  }
+  .row p { margin: 0; font-family: var(--font-sans); font-size: 1rem; }
+  .when {
+    font-family: var(--font-sans);
+    font-size: 0.82rem !important;
+    color: var(--color-fg-muted);
+    margin: 0;
+  }
+  .where {
+    font-family: var(--font-sans);
+    font-size: 0.85rem;
+    color: var(--color-fg-muted);
+    margin: 0.15rem 0 0;
+    font-style: italic;
+  }
+  .summary {
+    color: var(--color-fg);
+    margin: 0.45rem 0 0.3rem;
+    font-size: 1rem;
+  }
+  .stack {
+    font-family: var(--font-sans);
+    font-size: 0.82rem;
+    color: var(--color-fg-muted);
+    margin: 0.2rem 0 0.3rem;
+  }
+  .note {
+    color: var(--color-fg-dim);
+    font-size: 0.98rem;
+    margin: 0.1rem 0 0;
+  }
+  .bullets {
+    list-style: disc;
+    padding-left: 1.15rem;
+    margin: 0.2rem 0 0;
+  }
+  .bullets li {
+    color: var(--color-fg-dim);
+    font-size: 0.98rem;
+    line-height: 1.55;
+    margin-bottom: 0.15rem;
+  }
+
+  .skills { list-style: none; padding: 0; margin: 0; }
+  .skills li {
+    display: grid;
+    grid-template-columns: 8rem 1fr;
+    gap: 0.75rem;
+    padding: 0.35rem 0;
+    border-bottom: 1px dotted var(--color-line);
+    font-family: var(--font-sans);
+    font-size: 0.94rem;
+  }
+  .skills li:last-child { border-bottom: 0; }
+  .skill-key { color: var(--color-fg-muted); }
+  .skill-val { color: var(--color-fg-dim); }
+  @media (max-width: 600px) {
+    .skills li { grid-template-columns: 1fr; gap: 0.1rem; }
+  }
+</style>

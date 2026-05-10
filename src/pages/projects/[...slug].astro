@@ -1,0 +1,31 @@
+---
+import Article from '../../layouts/Article.astro';
+import { getCollection, render } from 'astro:content';
+
+export async function getStaticPaths() {
+  const projects = await getCollection('projects', ({ data }) => !data.draft);
+  return projects.map((post) => ({
+    params: { slug: post.id },
+    props: { post },
+  }));
+}
+
+const { post } = Astro.props;
+const { Content } = await render(post);
+---
+
+<Article
+  title={post.data.title}
+  description={post.data.description}
+  pubDate={post.data.pubDate}
+  updated={post.data.updated}
+  tags={post.data.tags}
+>
+  {(post.data.repo || post.data.demo) && (
+    <p style="font-family: var(--font-sans); font-size: 0.9rem; display: flex; gap: 1rem; margin: 0.3rem 0 0.5rem;">
+      {post.data.repo && <a href={post.data.repo}>Source ↗</a>}
+      {post.data.demo && <a href={post.data.demo}>Live demo ↗</a>}
+    </p>
+  )}
+  <Content />
+</Article>

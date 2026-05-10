@@ -1,0 +1,32 @@
+---
+title: "Post-training Danish Foundation Models"
+description: "Ongoing research at Aarhus University on RLAIF and synthetic instruction data for low-resource Scandinavian languages."
+pubDate: 2026-03-01
+authors: ["Vladimir Salnikov"]
+venue: "Aarhus University · ongoing"
+tags: ["nlp", "danish", "post-training", "rlaif", "low-resource"]
+---
+
+Ongoing research at [Aarhus University](https://international.au.dk/) on
+post-training **Danish foundation models**, with a focus on RLAIF (RL from AI
+feedback) variants adapted to low-resource languages.
+
+## The constraint
+
+The bottleneck for Danish post-training isn't compute — it's **coverage and
+quality of preference and instruction data**. Standard recipes assume an
+abundant pool of human preference judgements and instruction-tuning conversations.
+For Danish, both are scarce, and naive English→Danish translation introduces
+its own distributional artifacts.
+
+## What I work on
+
+- **RLAIF pipelines** that produce useful preference signal at Danish-scale
+  data, including adjustments to the judge prompt and pairwise sampling to
+  reduce English-bias leak-through.
+- **Synthetic instruction-tuning datasets** for Danish, built to fit the same
+  chat-`messages` schema used by my [open-source Scandinavian SFT release](/projects/scandinavian-instruction-tuning/).
+  Reusing one schema makes ablations across post-training stages much easier.
+
+This page will track outputs as they appear — preprints, datasets, and
+write-ups on what worked and what didn't.

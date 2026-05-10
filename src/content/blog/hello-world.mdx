@@ -1,0 +1,83 @@
+---
+title: "Hello, world"
+description: "First post. A quick tour of every layout primitive on this site."
+pubDate: 2026-05-11
+tags: ["meta"]
+---
+
+import Figure from '../../components/Figure.astro';
+import Sidenote from '../../components/Sidenote.astro';
+import WebGPUCanvas from '../../components/islands/WebGPUCanvas.tsx';
+
+Welcome. This is the first post on the site — a quick demo of every layout
+primitive available so I have something to reference later.
+
+## Math
+
+Inline math like $e^{i\pi} + 1 = 0$ renders via KaTeX at build time. Block math, too:
+
+$$
+\nabla \cdot \mathbf{E} = \frac{\rho}{\varepsilon_0}
+$$
+
+The rendering equation, for reference:
+
+$$
+L_o(\mathbf{p}, \omega_o) = L_e(\mathbf{p}, \omega_o)
+  + \int_\Omega f_r(\mathbf{p}, \omega_i, \omega_o)\, L_i(\mathbf{p}, \omega_i)\, \cos\theta_i \, d\omega_i
+$$
+
+## Wide and full-bleed figures
+
+By default, content sits in the narrow text column. Figures can opt into wider tiers:
+
+<Figure wide caption="A wide figure — same column width as text plus side margins.">
+  <div style={{
+    background: 'linear-gradient(135deg, #1f2a44, #14213d)',
+    aspectRatio: '16 / 7',
+    borderRadius: '4px',
+    display: 'grid',
+    placeItems: 'center',
+    color: '#9aa5c0',
+    fontFamily: 'var(--font-sans)',
+  }}>
+    wide figure placeholder
+  </div>
+</Figure>
+
+<Figure full caption="A full-bleed figure spans the whole viewport width.">
+  <div style={{
+    background: 'linear-gradient(135deg, #2a1f44, #3a1d3d)',
+    aspectRatio: '21 / 9',
+    display: 'grid',
+    placeItems: 'center',
+    color: '#c79ac0',
+    fontFamily: 'var(--font-sans)',
+  }}>
+    full-bleed placeholder
+  </div>
+</Figure>
+
+## Sidenotes
+
+Margin notes float in the right gutter on wide screens and inline on mobile.<Sidenote>This is a sidenote — useful for asides that don't belong in the main flow.</Sidenote> The text continues without interruption.
+
+## WebGPU islands
+
+The site can host live WebGPU demos as React "islands" — only the components
+that need it ship JS, and the rest of the page stays static HTML. Below is the
+default demo: a fragment shader animating UV coordinates in time.
+
+<Figure wide caption="Animated WGSL shader running locally on your GPU. Shows a fallback in browsers without WebGPU.">
+  <WebGPUCanvas client:visible />
+</Figure>
+
+## Code
+
+```ts
+function lerp(a: number, b: number, t: number) {
+  return a + (b - a) * t;
+}
+```
+
+That's the tour.

@@ -1,0 +1,39 @@
+---
+title: "Relative Depth Estimation from Dense Feature Matches"
+description: "BSc thesis at Lund University on estimating relative depth between matched points using GNNs and CNNs."
+pubDate: 2025-06-01
+authors: ["Vladimir Salnikov"]
+venue: "BSc thesis, Lund University · CVML group"
+tags: ["computer-vision", "depth-estimation", "gnn"]
+---
+
+My Bachelor's thesis, written in the [CVML group](https://www.maths.lu.se/english/research/research-areas/computer-vision-and-machine-learning/)
+at Lund University under [Viktor Larsson](https://vlarsson.github.io/).
+
+## Problem
+
+Given two images of the same scene and a set of dense feature matches between
+them, can we estimate **relative depth** at the matched points — i.e. for each
+match, which of the two corresponding 3D points is closer to the camera — without
+running full multi-view stereo?
+
+## Approach
+
+The thesis trains two complementary families of models on this signal:
+
+- **Graph Neural Networks** over the match graph, with each match as a node
+  and edges encoding geometric / appearance similarity between matches.
+- **Convolutional Neural Networks** working directly on local image patches
+  around each match.
+
+Both are compared against existing relative-depth methods from the CVML
+literature. Implementation in PyTorch + PyTorch Geometric, with feature
+extraction and matching via OpenCV.
+
+## Reflections
+
+The project was my first sustained piece of computer-vision research and the
+reason I'm continuing in visual computing at DTU. A lot of the work was
+infrastructure — preparing match datasets, sanity-checking baselines, comparing
+across published methods with PhD students in the group — but the comparisons
+themselves taught me more than any paper-reading would have.

@@ -1,0 +1,78 @@
+---
+import Base from '../layouts/Base.astro';
+import PostCard from '../components/PostCard.astro';
+import { getCollection } from 'astro:content';
+
+const posts = (await getCollection('blog', ({ data }) => !data.draft))
+  .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf())
+  .slice(0, 5);
+
+const projects = (await getCollection('projects', ({ data }) => !data.draft))
+  .filter((p) => p.data.featured)
+  .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf())
+  .slice(0, 3);
+---
+
+<Base title="Home">
+  <section class="max-w-3xl mx-auto px-6 py-16">
+    <h1 style="font-family: var(--font-serif); font-size: 2rem; margin: 0 0 0.8rem;">
+      Vladimir Salnikov
+    </h1>
+    <p style="color: var(--color-fg-dim); font-size: 1.15rem; line-height: 1.6; max-width: 58ch;">
+      MSc student in Human-Centered AI at DTU, focused on visual computing. My
+      work sits at the intersection of computer vision, multilingual NLP, and
+      the Scandinavian languages — I currently work on post-training Danish
+      foundation models at <a href="https://international.au.dk/" style="color: inherit;">Aarhus University</a>,
+      and on maritime computer vision at Kravi Analytics in Lund.
+    </p>
+    <p style="color: var(--color-fg-dim); font-size: 1.05rem; line-height: 1.6; max-width: 58ch; margin-top: 1rem;">
+      This is where I keep notes on what I build — research, projects, and
+      longer write-ups with math and interactive figures when they help.
+    </p>
+
+    <h2 class="section-heading">Latest writing</h2>
+    {posts.length === 0 ? (
+      <p style="color: var(--color-fg-dim); font-style: italic;">Nothing here yet.</p>
+    ) : (
+      <div>
+        {posts.map((p) => (
+          <PostCard
+            href={`/blog/${p.id}/`}
+            title={p.data.title}
+            description={p.data.description}
+            pubDate={p.data.pubDate}
+            tags={p.data.tags}
+          />
+        ))}
+      </div>
+    )}
+
+    {projects.length > 0 && (
+      <>
+        <h2 class="section-heading">Selected projects</h2>
+        <div>
+          {projects.map((p) => (
+            <PostCard
+              href={`/projects/${p.id}/`}
+              title={p.data.title}
+              description={p.data.description}
+              pubDate={p.data.pubDate}
+              tags={p.data.tags}
+            />
+          ))}
+        </div>
+      </>
+    )}
+  </section>
+</Base>
+
+<style>
+  .section-heading {
+    font-family: var(--font-sans);
+    font-size: 0.75rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--color-fg-muted);
+    margin: 3.5rem 0 0.5rem;
+  }
+</style>

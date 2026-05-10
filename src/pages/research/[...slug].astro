@@ -1,0 +1,35 @@
+---
+import Article from '../../layouts/Article.astro';
+import { getCollection, render } from 'astro:content';
+
+export async function getStaticPaths() {
+  const items = await getCollection('research', ({ data }) => !data.draft);
+  return items.map((post) => ({
+    params: { slug: post.id },
+    props: { post },
+  }));
+}
+
+const { post } = Astro.props;
+const { Content } = await render(post);
+---
+
+<Article
+  title={post.data.title}
+  description={post.data.description}
+  pubDate={post.data.pubDate}
+  updated={post.data.updated}
+  tags={post.data.tags}
+>
+  <p style="font-family: var(--font-sans); font-size: 0.9rem; color: var(--color-fg-dim); margin: 0;">
+    {post.data.authors.length > 0 && <span>{post.data.authors.join(', ')}</span>}
+    {post.data.venue && <span> · <em>{post.data.venue}</em></span>}
+  </p>
+  {(post.data.pdf || post.data.bibtex) && (
+    <p style="font-family: var(--font-sans); font-size: 0.9rem; display: flex; gap: 1rem; margin: 0.3rem 0 0.5rem;">
+      {post.data.pdf && <a href={post.data.pdf}>PDF ↗</a>}
+      {post.data.bibtex && <a href={post.data.bibtex}>BibTeX ↗</a>}
+    </p>
+  )}
+  <Content />
+</Article>

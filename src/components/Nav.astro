@@ -1,0 +1,30 @@
+---
+const links = [
+  { href: '/blog/', label: 'Blog' },
+  { href: '/projects/', label: 'Projects' },
+  { href: '/research/', label: 'Research' },
+  { href: '/cv/', label: 'CV' },
+];
+
+const path = Astro.url.pathname;
+const isActive = (href: string) => path === href || (href !== '/' && path.startsWith(href));
+---
+
+<header class="border-b border-[var(--color-line)]">
+  <nav class="max-w-5xl mx-auto px-6 py-5 flex items-baseline justify-between font-sans">
+    <a href="/" class="plain text-lg font-medium" style="color: var(--color-fg);">vladimir·s</a>
+    <ul class="flex gap-5 text-sm list-none m-0 p-0">
+      {links.map((l) => (
+        <li>
+          <a
+            href={l.href}
+            class="plain"
+            style={`color: ${isActive(l.href) ? 'var(--color-fg)' : 'var(--color-fg-dim)'};`}
+          >
+            {l.label}
+          </a>
+        </li>
+      ))}
+    </ul>
+  </nav>
+</header>

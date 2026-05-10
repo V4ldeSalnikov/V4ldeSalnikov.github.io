@@ -1,0 +1,31 @@
+---
+title: "SMK Image-Text"
+description: "An image–text dataset built from digitized SMK (Statens Museum for Kunst) artworks, with Danish and English descriptions."
+pubDate: 2025-12-15
+tags: ["vision-language", "datasets", "danish"]
+featured: true
+demo: "https://huggingface.co/V4ldeLund"
+---
+
+An image–text dataset built from the digitized collection of
+[Statens Museum for Kunst (SMK)](https://www.smk.dk/en/), Denmark's national gallery.
+
+Each artwork is paired with curatorial descriptions in **Danish** and, where
+available, **English** — giving downstream vision–language models a bilingual
+signal grounded in real museum metadata rather than generic web alt-text.
+
+## Why bother
+
+Most Danish vision–language data is machine-translated from English webscrapes.
+That works for some things, but it's not great if you want models that can
+talk about Danish-specific visual culture (paintings, sculpture, period
+furniture, etc.). SMK's catalog is curated, well-described, and openly accessible
+via their API — so it makes a clean source of culturally-grounded Danish
+image–text pairs.
+
+## What's in the dataset
+
+- One row per artwork (paintings, drawings, sculpture, etc.) with the image URL,
+  Danish description, and English description when SMK has one.
+- Provenance metadata: artwork ID, artist, period, classification, license.
+- Filtered to images that are public-domain or otherwise safely redistributable.
