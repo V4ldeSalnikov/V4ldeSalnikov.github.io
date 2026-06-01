@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>W01P1b – WebGPU rectangle</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script defer src="MV.js"></script>
+  <script defer src="Worksheet1-1b.js"></script>
+  <style>
+    html, body { margin: 0; height: 100%; background: #222; }
+    canvas { display: block; margin: auto; }
+  </style>
+</head>
+<body>
+  <canvas id="my-canvas" width="512" height="512"></canvas>
+
+  <script id="quad-wgsl" type="wgsl">
+struct VSOut {
+  @builtin(position) position : vec4f,
+  @location(0)       color    : vec4f,
+};
+
+@vertex
+fn vs_main(@builtin(vertex_index) vid: u32) -> VSOut {
+  var positions = array<vec2f, 4>(
+    vec2f(-0.9, -0.9),
+    vec2f( 0.9, -0.9),
+    vec2f(-0.9,  0.9),
+    vec2f( 0.9,  0.9)
+  );
+
+  var out : VSOut;
+  out.position = vec4f(positions[vid], 0.0, 1.0);
+  out.color    = vec4f(0.1, 0.3, 0.6, 1.0);
+  return out;
+}
+
+@fragment
+fn fs_main(in: VSOut) -> @location(0) vec4f {
+  return in.color;
+}
+  </script>
+</body>
+</html>

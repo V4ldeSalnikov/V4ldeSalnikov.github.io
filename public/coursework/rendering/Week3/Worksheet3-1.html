@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>W03P1 – Texture addressing and filtering</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script defer src="../Week1/MV.js"></script>
+  <script defer src="Worksheet3-1.js"></script>
+  <style>
+    html, body { margin: 0; height: 100%; background: #1c1c1c; color: #e0e0e0; font-family: system-ui, sans-serif; }
+    main { min-height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1.5rem; padding: 2rem 1rem; box-sizing: border-box; }
+    canvas { display: block; border: 1px solid #444; background: #000; }
+    .controls { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; justify-content: center; }
+    label { display: flex; align-items: center; gap: 0.5rem; }
+    select, input[type="range"] { padding: 0.25rem 0.5rem; background: #2b2b2b; border: 1px solid #555; color: inherit; border-radius: 4px; }
+    .scale-label { gap: 0.5rem; }
+    .scale-label span { min-width: 3ch; text-align: right; display: inline-block; }
+  </style>
+</head>
+<body>
+  <main>
+    <canvas id="texture-canvas" width="600" height="600">
+      Please use a browser that supports WebGPU.
+    </canvas>
+    <div class="controls">
+      <label>
+        Addressing
+        <select id="addressing-mode">
+          <option value="0" selected>Clamp to edge</option>
+          <option value="1">Repeat</option>
+        </select>
+      </label>
+      <label>
+        Filtering
+        <select id="filter-mode">
+          <option value="0" selected>Nearest</option>
+          <option value="1">Linear</option>
+        </select>
+      </label>
+      <label class="scale-label">
+        Texture scale
+        <input id="texture-scale" type="range" min="1" max="4" step="0.1" value="1" />
+        <span id="scale-value">1×</span>
+      </label>
+    </div>
+  </main>
+
+  <script id="texture-wgsl" type="wgsl">
+struct VSOut {
+  @builtin(position) position : vec4f,
+  @location(0)       uv       : vec2f,
+};
+
+struct Uniforms {
+  config : vec4f,
+};
+
+@group(0) @binding(0) var<uniform> U : Uniforms;
+@group(0) @binding(1) var textureImage : texture_2d<f32>;
+
+@vertex
+fn vs_main(@location(0) position : vec2f) -> VSOut {
+  var out : VSOut;
+  out.position = vec4f(position, 0.0, 1.0);
+  out.uv = position * 0.5 + vec2f(0.5);
+  return out;
+}
+
+fn texel(coord: vec2i, res: vec2i, repeat: bool) -> vec3f {
+  let idx = select(clamp(coord, vec2i(0), res - vec2i(1)), coord % res, repeat);
+  return textureLoad(textureImage, vec2u(idx), 0).rgb;
+}
+
+fn address(uv: vec2f, repeat: bool) -> vec2f {
+  return select(clamp(uv, vec2f(0.0), vec2f(1.0)), fract(uv), repeat);
+}
+
+fn texture_nearest(texcoords: vec2f, repeat: bool) -> vec3f {
+  let res = vec2i(textureDimensions(textureImage));
+  let ab = address(texcoords, repeat) * vec2f(res);
+  let UV = vec2i(floor(ab + 0.5));
+  return texel(UV, res, repeat);
+}
+
+fn texture_linear(texcoords: vec2f, repeat: bool) -> vec3f {
+  let res = vec2i(textureDimensions(textureImage));
+  let ab = address(texcoords, repeat) * vec2f(res);
+  let base = vec2i(floor(ab));
+  let w = ab - vec2f(base);
+  let c00 = texel(base,               res, repeat);
+  let c10 = texel(base + vec2i(1, 0), res, repeat);
+  let c01 = texel(base + vec2i(0, 1), res, repeat);
+  let c11 = texel(base + vec2i(1, 1), res, repeat);
+  return mix(mix(c00, c10, w.x), mix(c01, c11, w.x), w.y);
+}
+
+@fragment
+fn fs_main(in: VSOut) -> @location(0) vec4f {
+  let scale  = U.config.xy;
+  let repeat = U.config.z > 0.5;
+  let linear = U.config.w > 0.5;
+  let texcoords = in.uv * scale;
+
+  var color: vec3f;
+  if (linear) {
+    color = texture_linear(texcoords, repeat);
+  } else {
+    color = texture_nearest(texcoords, repeat);
+  }
+  return vec4f(color, 1.0);
+}
+  </script>
+</body>
+</html>

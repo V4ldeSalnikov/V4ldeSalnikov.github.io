@@ -1,0 +1,331 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>W03P4 – Texture filtering exploration</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script defer src="../Week1/MV.js"></script>
+  <script defer src="Worksheet3-4.js"></script>
+  <style>
+    html, body { margin: 0; height: 100%; background: #1c1c1c; color: #e0e0e0; font-family: system-ui, sans-serif; }
+    main { min-height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1.5rem; padding: 2rem 1rem; box-sizing: border-box; }
+    canvas { display: block; border: 1px solid #444; background: #000; }
+    .controls { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; justify-content: center; max-width: 960px; }
+    .control-group { display: flex; align-items: center; gap: 0.5rem; background: #242424; padding: 0.4rem 0.8rem; border-radius: 6px; border: 1px solid #333; }
+    .control-group.buttons { background: transparent; border: none; padding: 0; }
+    button { padding: 0.35rem 0.75rem; border: 1px solid #555; background: #2b2b2b; color: inherit; border-radius: 4px; cursor: pointer; }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+    select, input[type="range"] { padding: 0.25rem 0.5rem; background: #2b2b2b; border: 1px solid #555; color: inherit; border-radius: 4px; }
+    input[type="range"] { width: 130px; }
+    label.control-group { cursor: pointer; }
+    input[type="checkbox"] { width: 1.1rem; height: 1.1rem; }
+    .value { min-width: 3ch; text-align: right; font-variant-numeric: tabular-nums; }
+  </style>
+</head>
+<body>
+  <main>
+    <canvas id="my-canvas" width="600" height="600">
+      Please use a browser that supports WebGPU.
+    </canvas>
+    <div class="controls">
+      <div class="control-group buttons">
+        <button id="subdiv-dec">−</button>
+        <span id="subdiv-label">1 × 1 (1 sample)</span>
+        <button id="subdiv-inc">+</button>
+      </div>
+      <label class="control-group">
+        <input type="checkbox" id="toggle-texture" checked />
+        Enable plane texture
+      </label>
+      <label class="control-group">
+        Plane shader
+        <select id="plane-shader">
+          <option value="0">Base colour</option>
+          <option value="1" selected>Lambert</option>
+        </select>
+      </label>
+      <label class="control-group">
+        Addressing
+        <select id="address-mode">
+          <option value="0">Clamp to edge</option>
+          <option value="1" selected>Repeat</option>
+        </select>
+      </label>
+      <label class="control-group">
+        Filtering
+        <select id="filter-mode">
+          <option value="0">Nearest</option>
+          <option value="1" selected>Linear</option>
+        </select>
+      </label>
+      <label class="control-group">
+        Magnification
+        <input type="range" id="scale-divisor" min="1" max="10" step="1" value="1" />
+        <span id="scale-label" class="value">×1</span>
+      </label>
+      <label class="control-group">
+        Gamma
+        <input type="range" id="gamma" min="1.0" max="2.6" step="0.1" value="2.2" />
+        <span id="gamma-label" class="value">2.2</span>
+      </label>
+    </div>
+  </main>
+
+  <script id="raytracing-wgsl" type="wgsl">
+struct VSOut {
+  @builtin(position) position : vec4f,
+  @location(0)       coords   : vec2f,
+};
+
+struct Uniforms {
+  eye            : vec4f,
+  right          : vec4f,
+  up             : vec4f,
+  forward        : vec4f,
+  params         : vec4f,
+  planePoint     : vec4f,
+  planeTangent   : vec4f,
+  planeBinormal  : vec4f,
+  planeNormal    : vec4f,
+  planeColor     : vec4f,
+  sphere         : vec4f,
+  sphereColor    : vec4f,
+  triV0          : vec4f,
+  triV1          : vec4f,
+  triV2          : vec4f,
+  triColor       : vec4f,
+  background     : vec4f,
+  lightPosition  : vec4f,
+  lightIntensity : vec4f,
+  texControls    : vec4f,
+};
+
+struct Onb {
+  tangent  : vec3f,
+  binormal : vec3f,
+  normal   : vec3f,
+};
+
+struct Ray {
+  origin    : vec3f,
+  direction : vec3f,
+};
+
+struct HitInfo {
+  hit      : bool,
+  t        : f32,
+  position : vec3f,
+  normal   : vec3f,
+  base     : vec3f,
+  shader   : u32,
+};
+
+struct Light {
+  Li   : vec3f,
+  wi   : vec3f,
+  dist : f32,
+};
+
+@group(0) @binding(0) var<uniform> U : Uniforms;
+@group(0) @binding(1) var planeTexture : texture_2d<f32>;
+@group(0) @binding(2) var<storage, read> jitter : array<vec2f>;
+
+const PI : f32 = 3.14159265358979;
+const SHADER_BASE_COLOUR : u32 = 0u;
+const SHADER_LAMBERT      : u32 = 1u;
+
+@vertex
+fn vs_main(@builtin(vertex_index) vid: u32) -> VSOut {
+  var positions = array<vec2f, 4>(
+    vec2f(-1.0, -1.0),
+    vec2f( 1.0, -1.0),
+    vec2f(-1.0,  1.0),
+    vec2f( 1.0,  1.0)
+  );
+  var out : VSOut;
+  out.position = vec4f(positions[vid], 0.0, 1.0);
+  out.coords   = positions[vid];
+  return out;
+}
+
+fn face_forward(n: vec3f, dir: vec3f) -> vec3f {
+  let un = normalize(n);
+  return select(un, -un, dot(un, dir) > 0.0);
+}
+
+fn get_camera_ray(ipcoords: vec2f) -> Ray {
+  var ray : Ray;
+  ray.origin    = U.eye.xyz;
+  ray.direction = normalize(ipcoords.x * U.right.xyz
+                          + ipcoords.y * U.up.xyz
+                          + U.params.y * U.forward.xyz);
+  return ray;
+}
+
+fn texel(coord: vec2i, res: vec2i, repeat: bool) -> vec3f {
+  let idx = select(clamp(coord, vec2i(0), res - vec2i(1)), coord % res, repeat);
+  return textureLoad(planeTexture, vec2u(idx), 0).rgb;
+}
+
+fn address(uv: vec2f, repeat: bool) -> vec2f {
+  return select(clamp(uv, vec2f(0.0), vec2f(1.0)), fract(uv), repeat);
+}
+
+fn texture_nearest(texcoords: vec2f, repeat: bool) -> vec3f {
+  let res = vec2i(textureDimensions(planeTexture));
+  let ab = address(texcoords, repeat) * vec2f(res);
+  let UV = vec2i(floor(ab + 0.5));
+  return texel(UV, res, repeat);
+}
+
+fn texture_linear(texcoords: vec2f, repeat: bool) -> vec3f {
+  let res = vec2i(textureDimensions(planeTexture));
+  let ab = address(texcoords, repeat) * vec2f(res);
+  let base = vec2i(floor(ab));
+  let w = ab - vec2f(base);
+  let c00 = texel(base,               res, repeat);
+  let c10 = texel(base + vec2i(1, 0), res, repeat);
+  let c01 = texel(base + vec2i(0, 1), res, repeat);
+  let c11 = texel(base + vec2i(1, 1), res, repeat);
+  return mix(mix(c00, c10, w.x), mix(c01, c11, w.x), w.y);
+}
+
+fn sample_texture(texcoords: vec2f, repeat: bool, linear: bool) -> vec3f {
+  if (linear) { return texture_linear(texcoords, repeat); }
+  return texture_nearest(texcoords, repeat);
+}
+
+fn intersect_plane(ray: Ray, point: vec3f, onb: Onb) -> f32 {
+  let denom = dot(onb.normal, ray.direction);
+  if (abs(denom) < 1e-8) { return -1.0; }
+  return dot(point - ray.origin, onb.normal) / denom;
+}
+
+fn intersect_sphere(ray: Ray, center: vec3f, radius: f32) -> f32 {
+  let oc = ray.origin - center;
+  let b = dot(oc, ray.direction);
+  let c = dot(oc, oc) - radius * radius;
+  let disc = b * b - c;
+  if (disc < 0.0) { return -1.0; }
+  let sqrt_disc = sqrt(disc);
+  let t_near = -b - sqrt_disc;
+  if (t_near > 1e-4) { return t_near; }
+  return -b + sqrt_disc;
+}
+
+fn intersect_triangle(ray: Ray, v0: vec3f, v1: vec3f, v2: vec3f) -> f32 {
+  let edge1 = v1 - v0;
+  let edge2 = v2 - v0;
+  let pvec = cross(ray.direction, edge2);
+  let det = dot(edge1, pvec);
+  if (abs(det) < 1e-8) { return -1.0; }
+  let inv_det = 1.0 / det;
+  let tvec = ray.origin - v0;
+  let u = dot(tvec, pvec) * inv_det;
+  let qvec = cross(tvec, edge1);
+  let v = dot(ray.direction, qvec) * inv_det;
+  if (u < 0.0 || v < 0.0 || u + v > 1.0) { return -1.0; }
+  return dot(edge2, qvec) * inv_det;
+}
+
+fn intersect_scene(ray: Ray, texturing: bool) -> HitInfo {
+  var hit : HitInfo;
+  hit.hit = false;
+  hit.t = 1e9;
+
+  let plane_onb = Onb(U.planeTangent.xyz, U.planeBinormal.xyz, U.planeNormal.xyz);
+  let t_plane = intersect_plane(ray, U.planePoint.xyz, plane_onb);
+  if (t_plane > 1e-4 && t_plane < hit.t) {
+    hit.hit = true;
+    hit.t = t_plane;
+    hit.position = ray.origin + t_plane * ray.direction;
+    hit.normal = face_forward(plane_onb.normal, ray.direction);
+    hit.shader = u32(U.planeColor.w);
+    if (texturing) {
+      let rel = hit.position - U.planePoint.xyz;
+      let texcoords = vec2f(dot(rel, plane_onb.tangent), dot(rel, plane_onb.binormal)) * U.texControls.x;
+      hit.base = sample_texture(texcoords, U.texControls.y > 0.5, U.texControls.z > 0.5);
+    } else {
+      hit.base = U.planeColor.xyz;
+    }
+  }
+
+  let t_sphere = intersect_sphere(ray, U.sphere.xyz, U.sphere.w);
+  if (t_sphere > 1e-4 && t_sphere < hit.t) {
+    hit.hit = true;
+    hit.t = t_sphere;
+    hit.position = ray.origin + t_sphere * ray.direction;
+    hit.normal = normalize(hit.position - U.sphere.xyz);
+    hit.base = U.sphereColor.xyz;
+    hit.shader = SHADER_LAMBERT;
+  }
+
+  let t_tri = intersect_triangle(ray, U.triV0.xyz, U.triV1.xyz, U.triV2.xyz);
+  if (t_tri > 1e-4 && t_tri < hit.t) {
+    hit.hit = true;
+    hit.t = t_tri;
+    hit.position = ray.origin + t_tri * ray.direction;
+    hit.normal = face_forward(cross(U.triV1.xyz - U.triV0.xyz, U.triV2.xyz - U.triV0.xyz), ray.direction);
+    hit.base = U.triColor.xyz;
+    hit.shader = SHADER_LAMBERT;
+  }
+
+  return hit;
+}
+
+fn is_occluded(origin: vec3f, dir: vec3f, max_dist: f32) -> bool {
+  let ray = Ray(origin, dir);
+  let plane_onb = Onb(U.planeTangent.xyz, U.planeBinormal.xyz, U.planeNormal.xyz);
+  let t_plane = intersect_plane(ray, U.planePoint.xyz, plane_onb);
+  if (t_plane > 1e-4 && t_plane < max_dist) { return true; }
+  let t_sphere = intersect_sphere(ray, U.sphere.xyz, U.sphere.w);
+  if (t_sphere > 1e-4 && t_sphere < max_dist) { return true; }
+  let t_tri = intersect_triangle(ray, U.triV0.xyz, U.triV1.xyz, U.triV2.xyz);
+  if (t_tri > 1e-4 && t_tri < max_dist) { return true; }
+  return false;
+}
+
+fn sample_point_light(pos: vec3f) -> Light {
+  let to_light = U.lightPosition.xyz - pos;
+  let dist = length(to_light);
+  return Light(U.lightIntensity.xyz / (dist * dist), to_light / dist, dist);
+}
+
+fn shade(hit: HitInfo) -> vec3f {
+  if (hit.shader == SHADER_BASE_COLOUR) {
+    return hit.base;
+  }
+  var Lo = 0.1 * hit.base;
+  let light = sample_point_light(hit.position);
+  let shadow_origin = hit.position + 1e-3 * hit.normal;
+  if (!is_occluded(shadow_origin, light.wi, light.dist)) {
+    let n_dot_l = max(dot(hit.normal, light.wi), 0.0);
+    Lo += 0.9 * hit.base / PI * light.Li * n_dot_l;
+  }
+  return Lo;
+}
+
+@fragment
+fn fs_main(in: VSOut) -> @location(0) vec4f {
+  let texturing = U.params.z > 0.5;
+  let num_samples = max(u32(U.params.w), 1u);
+  let center = vec2f(in.coords.x * U.params.x, in.coords.y) * 0.5;
+
+  var color = vec3f(0.0);
+  for (var i = 0u; i < num_samples; i = i + 1u) {
+    let ray = get_camera_ray(center + jitter[i]);
+    let hit = intersect_scene(ray, texturing);
+    if (hit.hit) {
+      color += shade(hit);
+    } else {
+      color += U.background.xyz;
+    }
+  }
+  color /= f32(num_samples);
+
+  color = pow(color, vec3f(1.0 / U.texControls.w));
+  return vec4f(color, 1.0);
+}
+  </script>
+</body>
+</html>

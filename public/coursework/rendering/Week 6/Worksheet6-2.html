@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>W06P2 - BSP tree traversal</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script defer src="../Week1/MV.js"></script>
+  <script defer src="bsptree/Aabb.js"></script>
+  <script defer src="bsptree/BspTree.js"></script>
+  <script defer src="bsptree/TimingHelper.js"></script>
+  <script defer src="bsptree/OBJParser.js"></script>
+  <script defer src="Worksheet6-2.js"></script>
+  <style>
+    html, body { margin: 0; min-height: 100%; background: #101010; color: #f0f0f0; font-family: system-ui, sans-serif; }
+    body { display: grid; place-content: center; gap: 10px; }
+    #toolbar { display: flex; align-items: center; gap: 12px; font-size: 14px; }
+    button, select { padding: 5px 10px; border: 1px solid #777; background: #242424; color: #f0f0f0; cursor: pointer; }
+    button:hover { background: #303030; }
+    canvas { display: block; }
+  </style>
+</head>
+<body>
+  <div id="toolbar">
+    <label>Mesh
+      <select id="scene-select">
+        <option value="teapot">Teapot</option>
+        <option value="bunny">Bunny</option>
+      </select>
+    </label>
+    <span id="gpu-time">GPU frame: waiting...</span>
+    <button id="render-button" type="button">Render again</button>
+  </div>
+
+  <canvas id="my-canvas" width="800" height="450">
+    Please use a browser that supports WebGPU.
+  </canvas>
+
+  <script id="raytracing-wgsl" type="wgsl">
+struct VSOut {
+  @builtin(position) position : vec4f,
+  @location(0)       coords   : vec2f,
+};
+
+struct Uniforms {
+  eye            : vec4f,
+  right          : vec4f,
+  up             : vec4f,
+  forward        : vec4f,
+  params         : vec4f,
+  planePoint     : vec4f,
+  planeNormal    : vec4f,
+  planeColor     : vec4f,
+  meshColor      : vec4f,
+  background     : vec4f,
+  lightDirection : vec4f,
+  lightRadiance  : vec4f,
+};
+
+struct Aabb {
+  min : vec3f,
+  max : vec3f,
+};
+
+struct Ray {
+  origin    : vec3f,
+  direction : vec3f,
+  tmin      : f32,
+  tmax      : f32,
+};
+
+struct HitInfo {
+  hit      : bool,
+  t        : f32,
+  position : vec3f,
+  normal   : vec3f,
+  diffuse  : vec3f,
+};
+
+struct TriHit {
+  t     : f32,
+  beta  : f32,
+  gamma : f32,
+};
+
+struct Light {
+  Li : vec3f,
+  wi : vec3f,
+};
+
+@group(0) @binding(0) var<uniform> U : Uniforms;
+@group(0) @binding(1) var<storage, read> vPositions : array<vec3f>;
+@group(0) @binding(2) var<storage, read> meshFaces  : array<vec3u>;
+@group(0) @binding(3) var<storage, read> vNormals   : array<vec3f>;
+@group(0) @binding(4) var<uniform> aabb : Aabb;
+@group(0) @binding(5) var<storage, read> treeIds   : array<u32>;
+@group(0) @binding(6) var<storage, read> bspTree   : array<vec4u>;
+@group(0) @binding(7) var<storage, read> bspPlanes : array<f32>;
+
+const PI : f32 = 3.14159265358979;
+const MAX_LEVEL : u32 = 20u;
+const BSP_LEAF  : u32 = 3u;
+const INTERVAL_EPS : f32 = 1e-4;
+
+@vertex
+fn vs_main(@builtin(vertex_index) vid: u32) -> VSOut {
+  var positions = array<vec2f, 4>(
+    vec2f(-1.0, -1.0),
+    vec2f( 1.0, -1.0),
+    vec2f(-1.0,  1.0),
+    vec2f( 1.0,  1.0)
+  );
+  var out : VSOut;
+  out.position = vec4f(positions[vid], 0.0, 1.0);
+  out.coords   = positions[vid];
+  return out;
+}
+
+fn face_forward(n: vec3f, dir: vec3f) -> vec3f {
+  let un = normalize(n);
+  return select(un, -un, dot(un, dir) > 0.0);
+}
+
+fn get_camera_ray(ipcoords: vec2f) -> Ray {
+  let dir = normalize(ipcoords.x * U.right.xyz + ipcoords.y * U.up.xyz + U.params.y * U.forward.xyz);
+  return Ray(U.eye.xyz, dir, 1e-4, 1e9);
+}
+
+fn intersect_min_max(r: ptr<function, Ray>) -> bool {
+  let p1 = (aabb.min - (*r).origin) / (*r).direction;
+  let p2 = (aabb.max - (*r).origin) / (*r).direction;
+  let pmin = min(p1, p2);
+  let pmax = max(p1, p2);
+  let tmin = max(pmin.x, max(pmin.y, pmin.z)) - 1e-4;
+  let tmax = min(pmax.x, min(pmax.y, pmax.z)) + 1e-4;
+  if (tmin > tmax || tmin > (*r).tmax || tmax < (*r).tmin) {
+    return false;
+  }
+  (*r).tmin = max(tmin, (*r).tmin);
+  (*r).tmax = min(tmax, (*r).tmax);
+  return true;
+}
+
+fn intersect_plane(ray: Ray, point: vec3f, normal: vec3f) -> f32 {
+  let denom = dot(normal, ray.direction);
+  if (abs(denom) < 1e-8) { return -1.0; }
+  return dot(point - ray.origin, normal) / denom;
+}
+
+fn intersect_triangle(ray: Ray, face_index: u32) -> TriHit {
+  let f = meshFaces[face_index];
+  let v0 = vPositions[f.x];
+  let v1 = vPositions[f.y];
+  let v2 = vPositions[f.z];
+  let edge1 = v1 - v0;
+  let edge2 = v2 - v0;
+  let pvec = cross(ray.direction, edge2);
+  let det = dot(edge1, pvec);
+  if (abs(det) < 1e-8) { return TriHit(-1.0, 0.0, 0.0); }
+  let inv_det = 1.0 / det;
+  let tvec = ray.origin - v0;
+  let beta = dot(tvec, pvec) * inv_det;
+  let qvec = cross(tvec, edge1);
+  let gamma = dot(ray.direction, qvec) * inv_det;
+  if (beta < 0.0 || gamma < 0.0 || beta + gamma > 1.0) { return TriHit(-1.0, 0.0, 0.0); }
+  let t = dot(edge2, qvec) * inv_det;
+  let eps = max(INTERVAL_EPS, 1e-5 * ray.tmax);
+  if (t > ray.tmin - eps && t < ray.tmax + eps) { return TriHit(t, beta, gamma); }
+  return TriHit(-1.0, 0.0, 0.0);
+}
+
+fn interpolate_normal(f: vec3u, beta: f32, gamma: f32) -> vec3f {
+  let alpha = 1.0 - beta - gamma;
+  return normalize(alpha * vNormals[f.x] + beta * vNormals[f.y] + gamma * vNormals[f.z]);
+}
+
+fn make_mesh_hit(ray: Ray, tri: TriHit, face_index: u32) -> HitInfo {
+  var hit : HitInfo;
+  hit.hit = true;
+  hit.t = tri.t;
+  hit.position = ray.origin + tri.t * ray.direction;
+  hit.normal = face_forward(interpolate_normal(meshFaces[face_index], tri.beta, tri.gamma), ray.direction);
+  hit.diffuse = U.meshColor.xyz;
+  return hit;
+}
+
+fn intersect_trimesh(ray_in: Ray) -> HitInfo {
+  var ray = ray_in;
+  var hit : HitInfo;
+  hit.hit = false;
+  hit.t = ray.tmax;
+
+  if (!intersect_min_max(&ray)) {
+    return hit;
+  }
+
+  var branch_node : array<vec2u, MAX_LEVEL>;
+  var branch_ray  : array<vec2f, MAX_LEVEL>;
+  var branch_lvl = 0u;
+  var node = 0u;
+
+  for (var i = 0u; i <= MAX_LEVEL; i = i + 1u) {
+    let tree_node = bspTree[node];
+    let axis_leaf = tree_node.x & 3u;
+
+    if (axis_leaf == BSP_LEAF) {
+      let count = tree_node.x >> 2u;
+      let id = tree_node.y;
+      var found = false;
+      for (var j = 0u; j < count; j = j + 1u) {
+        let face_index = treeIds[id + j];
+        let tri = intersect_triangle(ray, face_index);
+        if (tri.t > 0.0) {
+          hit = make_mesh_hit(ray, tri, face_index);
+          ray.tmax = tri.t;
+          found = true;
+        }
+      }
+      if (found) { return hit; }
+      if (branch_lvl == 0u) { return hit; }
+      branch_lvl = branch_lvl - 1u;
+      i = branch_node[branch_lvl].x;
+      node = branch_node[branch_lvl].y;
+      ray.tmin = branch_ray[branch_lvl].x;
+      ray.tmax = branch_ray[branch_lvl].y;
+      continue;
+    }
+
+    let axis = axis_leaf;
+    let dir_axis = ray.direction[axis];
+    var near_node = tree_node.z;
+    var far_node = tree_node.w;
+    if (dir_axis < 0.0) {
+      near_node = tree_node.w;
+      far_node = tree_node.z;
+    }
+    let denom = select(dir_axis, 1e-8, abs(dir_axis) < 1e-8);
+    let t = (bspPlanes[node] - ray.origin[axis]) / denom;
+
+    if (t > ray.tmax) {
+      node = near_node;
+    } else if (t < ray.tmin) {
+      node = far_node;
+    } else {
+      branch_node[branch_lvl] = vec2u(i, far_node);
+      branch_ray[branch_lvl] = vec2f(t, ray.tmax);
+      branch_lvl = branch_lvl + 1u;
+      ray.tmax = t;
+      node = near_node;
+    }
+  }
+
+  return hit;
+}
+
+fn intersect_scene(ray: Ray) -> HitInfo {
+  var hit : HitInfo;
+  hit.hit = false;
+  hit.t = 1e9;
+
+  let t_plane = intersect_plane(ray, U.planePoint.xyz, U.planeNormal.xyz);
+  if (t_plane > ray.tmin && t_plane < hit.t) {
+    hit.hit = true;
+    hit.t = t_plane;
+    hit.position = ray.origin + t_plane * ray.direction;
+    hit.normal = face_forward(U.planeNormal.xyz, ray.direction);
+    hit.diffuse = U.planeColor.xyz;
+  }
+
+  var mesh_ray = ray;
+  mesh_ray.tmax = hit.t;
+  let mesh_hit = intersect_trimesh(mesh_ray);
+  if (mesh_hit.hit && mesh_hit.t < hit.t) {
+    hit = mesh_hit;
+  }
+
+  return hit;
+}
+
+fn is_occluded(origin: vec3f, dir: vec3f) -> bool {
+  let ray = Ray(origin, dir, 1e-3, 1e9);
+  if (intersect_plane(ray, U.planePoint.xyz, U.planeNormal.xyz) > ray.tmin) { return true; }
+  return intersect_trimesh(ray).hit;
+}
+
+fn sample_directional_light() -> Light {
+  return Light(U.lightRadiance.xyz, -normalize(U.lightDirection.xyz));
+}
+
+fn shade(hit: HitInfo) -> vec3f {
+  let light = sample_directional_light();
+  let shadow_origin = hit.position + 1e-3 * hit.normal;
+  if (is_occluded(shadow_origin, light.wi)) {
+    return vec3f(0.0);
+  }
+  return hit.diffuse / PI * light.Li * max(dot(hit.normal, light.wi), 0.0);
+}
+
+@fragment
+fn fs_main(in: VSOut) -> @location(0) vec4f {
+  let ipcoords = vec2f(in.coords.x * U.params.x, in.coords.y) * 0.5;
+  let ray = get_camera_ray(ipcoords);
+  let hit = intersect_scene(ray);
+  if (hit.hit) {
+    return vec4f(shade(hit), 1.0);
+  }
+  return vec4f(U.background.xyz, 1.0);
+}
+  </script>
+</body>
+</html>

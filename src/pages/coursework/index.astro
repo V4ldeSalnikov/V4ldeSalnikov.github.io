@@ -1,0 +1,78 @@
+---
+import Base from '../../layouts/Base.astro';
+
+const courses = [
+  {
+    href: '/coursework/rendering/',
+    title: 'Rendering',
+    description:
+      'Physically based ray tracing built from scratch in WebGPU — ten weeks of worksheets, from a pinhole camera and ray–object intersection to mirrors, glass, BSP acceleration, path-traced global illumination, and HDR environment lighting, plus a Blender production-rendering journal.',
+    meta: 'DTU 02562 · WebGPU / WGSL · 10 weeks',
+  },
+  {
+    href: null,
+    title: 'Computer Graphics',
+    description:
+      'Rasterization, transforms, and the classic real-time graphics pipeline.',
+    meta: 'Coming soon',
+  },
+];
+---
+
+<Base title="Coursework">
+  <section class="max-w-3xl mx-auto px-6 py-12">
+    <h1 style="font-family: var(--font-serif); font-size: 2rem; margin: 0 0 0.4rem;">Coursework</h1>
+    <p style="color: var(--color-fg-dim); margin-bottom: 2.5rem;">
+      University courses — interactive exercises and lab journals.
+    </p>
+
+    {courses.map((c) => (
+      <article class="course-card">
+        {c.href ? (
+          <a href={c.href} class="plain">
+            <h3>{c.title}</h3>
+            <p class="desc">{c.description}</p>
+            <p class="meta">{c.meta}</p>
+          </a>
+        ) : (
+          <div class="soon">
+            <h3>{c.title}</h3>
+            <p class="desc">{c.description}</p>
+            <p class="meta">{c.meta}</p>
+          </div>
+        )}
+      </article>
+    ))}
+  </section>
+</Base>
+
+<style>
+  .course-card {
+    padding: 1.25rem 0;
+    border-bottom: 1px solid var(--color-line);
+  }
+  .course-card:last-child { border-bottom: 0; }
+  .course-card a { display: block; }
+  .course-card h3 {
+    font-family: var(--font-sans);
+    font-size: 1.1rem;
+    font-weight: 500;
+    color: var(--color-fg);
+    margin: 0;
+    transition: color 120ms ease;
+  }
+  .course-card a:hover h3 { color: var(--color-accent); }
+  .course-card .desc {
+    color: var(--color-fg-dim);
+    margin: 0.25rem 0 0;
+    font-size: 1rem;
+  }
+  .course-card .meta {
+    font-family: var(--font-sans);
+    font-size: 0.78rem;
+    color: var(--color-fg-muted);
+    margin: 0.5rem 0 0;
+  }
+  .course-card .soon { opacity: 0.55; }
+  .course-card .soon h3 { font-weight: 500; }
+</style>

@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>02562 Rendering — Worksheet 10: Production rendering in Blender</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { max-width: 880px; margin: 2rem auto; padding: 0 1rem;
+           font: 16px/1.55 Georgia, "Times New Roman", serif; color: #1a1a1a; }
+    h1 { font-size: 1.6rem; border-bottom: 2px solid #333; padding-bottom: .3rem; }
+    h2 { font-size: 1.2rem; margin-top: 2.2rem; color: #222; }
+    figure { margin: 1rem 0; text-align: center; }
+    img { max-width: 100%; border: 1px solid #ccc; }
+    figcaption { font-size: .9rem; color: #555; margin-top: .4rem; }
+    code { background: #f3f3f3; padding: 0 .25em; font-size: .92em; }
+    table { border-collapse: collapse; width: 100%; font-size: .95rem; }
+    th, td { border: 1px solid #ccc; padding: .4rem .6rem; text-align: left; vertical-align: top; }
+    th { background: #f3f3f3; }
+    .meta { color: #555; font-size: .92rem; }
+  </style>
+</head>
+<body>
+
+<h1>Worksheet 10 — Production rendering in Blender (Cycles)</h1>
+<p class="meta">02562 Rendering · synthetic objects rendered into a photographed environment
+with the Cycles path tracer. All images below are produced by the script
+<code>worksheet10.py</code> (<code>blender --background --python worksheet10.py -- partN</code>).</p>
+
+<h2>Scene setup (shared stage)</h2>
+<p>
+The three parts share one lit stage, so the only thing that changes between them is the
+materials — mirroring how we reused a single scene across Weeks 8–9 in our own renderer:
+</p>
+<ul>
+  <li><strong>Renderer:</strong> Cycles, GPU Compute on the Apple <em>Metal</em> backend.</li>
+  <li><strong>Environment lighting:</strong> the default point light is deleted entirely. Instead the
+      <em>World</em> uses an <em>Environment Texture</em> node loading the 360° HDR panorama
+      <code>luxo_pxr_campus.exr</code> (the Pixar campus plaza), fed into the <em>Background</em> node.
+      The HDR is both the only light source <em>and</em> the visible backdrop: its deep blue sky lights
+      the tops of the objects and its bright sun gives the contact shadows a clear direction. The panorama
+      only shipped as an RGBE-encoded <code>.hdr.png</code>, so <code>convert_luxo_exr.py</code> first
+      decodes it to a true linear <code>.exr</code> with <code>rgb·2^(255·α−128)</code> — the same RGBE
+      decode we used for environment maps in Week 9 — and box-filters the 8K source down to 4K in linear
+      radiance (keeping the lighting energy identical) so the environment texture fits comfortably in GPU
+      memory. A <em>Mapping</em> node rotates the panorama so the plaza and tree-line sit behind the
+      subjects.</li>
+  <li><strong>Holdout shadow catcher:</strong> a large planar quad below the objects with the Cycles
+      <em>Shadow Catcher</em> flag set (<code>object.is_shadow_catcher = True</code>). It is invisible
+      — it shows the environment behind it — but receives the contact shadows the synthetic objects
+      cast. This is the production version of the holdout trick we implemented by hand in Week 9.</li>
+  <li><strong>Tone mapping:</strong> the sunrise panorama is high dynamic range — its sky and sun are
+      far brighter than the subjects. The plain <em>Standard</em> transform clamps that bright sky to a
+      flat, hazy white and washes the whole frame toward a dull grey; <em>AgX</em> tames the highlights
+      but desaturates heavily. We use the <em>Khronos PBR Neutral</em> view transform, which compresses
+      the highlights so the sky keeps its blue while preserving hue and saturation, followed by a light
+      compositor grade (<code>+</code> contrast and ~20&nbsp;% saturation) so the greens, sky and chrome
+      read vividly rather than washed out.</li>
+</ul>
+
+<h2>Part 1 — Mirror sphere and mirror cube</h2>
+<figure>
+  <img src="renders/w10_part1.png" alt="Mirror sphere and cube in the Pixar campus HDR" />
+  <figcaption>Mirror sphere and cube in the photographed environment, with contact shadows on the
+  invisible holdout plane. Material: Principled BSDF, Metallic = 1, Roughness = 0.</figcaption>
+</figure>
+<p>
+Both objects use a fully metallic, zero-roughness Principled BSDF, which behaves as a perfect mirror.
+The <strong>sphere</strong> makes the mirror obvious: its curved surface samples the whole surrounding
+panorama at once, so we see plaza, trees and the blue sky wrapped across it. The <strong>cube</strong>'s
+top face reflects the blue sky while its front faces reflect the bright plaza, so it reads brighter than
+the sphere — that is the physically correct appearance of a chrome cube whose flat faces each mirror one
+broad patch of the environment, not a diffuse white box. Soft contact shadows land on the holdout plane
+under both objects.
+</p>
+
+<h2>Part 2 — Glossy metallic sphere and glass cube</h2>
+<figure>
+  <img src="renders/w10_part2.png" alt="Glossy red metal sphere and glass cube" />
+  <figcaption>Metallic glossy coloured sphere and a transmissive glass cube (IOR 1.5).</figcaption>
+</figure>
+<table>
+  <tr><th>Object</th><th>Principled BSDF settings</th><th>Appearance</th></tr>
+  <tr><td>Sphere</td>
+      <td>Base Color = red (0.85, 0.15, 0.12), Metallic = 1, Roughness = 0.15</td>
+      <td>Coloured conductor: the base colour tints the reflection and the small roughness spreads the
+          highlight into a glossy — not mirror-sharp — reflection.</td></tr>
+  <tr><td>Cube</td>
+      <td>Metallic = 0, Roughness = 0, Transmission Weight = 1, IOR = 1.5</td>
+      <td>Clear dielectric glass. The cube shows the plaza and tree-line refracted (inverted) through
+          the block — the give-away that it is solid glass rather than white.</td></tr>
+</table>
+<p>
+IOR 1.5 is the same index of refraction we used for glass in Week 8. Clear glass reads subtly against a
+bright environment: much of what the cube transmits and Fresnel-reflects is bright sky, so the refraction
+is clearest where darker content (the trees and buildings) lies behind it.
+</p>
+
+<h2>Part 3 — A “cool scene” with an imported triangle mesh</h2>
+<figure>
+  <img src="renders/w10_part3.png" alt="Gold Stanford bunny with glass cube and mirror sphere" />
+  <figcaption>Imported Stanford bunny (≈35 k vertices) as a glossy gold hero, flanked by the glass
+  cube and the mirror sphere.</figcaption>
+</figure>
+<p>
+The triangle mesh is <code>bunny.obj</code> from Week 5, imported with <code>bpy.ops.wm.obj_import</code>.
+It arrives Y-up and only ~0.15 units tall, so the script rotates it +90° about X to stand it, scales it
+to ~1.7 m, and drops its feet exactly onto the ground plane.
+</p>
+<p><strong>Material settings used:</strong></p>
+<ul>
+  <li><strong>Gold bunny:</strong> Principled BSDF, Base Color = (0.92, 0.70, 0.22), Metallic = 1,
+      Roughness = 0.15 — a glossy gold conductor whose base colour tints its reflections.</li>
+  <li><strong>Glass cube:</strong> Metallic = 0, Roughness = 0, Transmission = 1, IOR = 1.5.</li>
+  <li><strong>Mirror sphere:</strong> Metallic = 1, Roughness = 0.</li>
+</ul>
+<p><strong>Rendering parameters and why:</strong></p>
+<ul>
+  <li><strong>Samples:</strong> 256 (384 for this part, which has more glossy + transmissive paths),
+      cleaned up with the <em>OpenImageDenoise</em> denoiser so a low sample count still gives a clean
+      still.</li>
+  <li><strong>Max Bounces = 32</strong>, with <strong>Transmission bounces = 24</strong> and
+      <strong>Glossy bounces = 16</strong>. The glass cube needs deep transmission bounces — a ray
+      enters the front face, can totally-internally-reflect inside, and must still escape; with the
+      default bounce limits the glass would turn black where the path runs out. The mirror reflections
+      between the chrome sphere and the glass also need plenty of glossy bounces.</li>
+  <li><strong>Khronos PBR Neutral</strong> view transform (plus the light compositor grade) to tone-map
+      the high-dynamic-range sunrise lighting without clipping the bright sky to a flat white, while
+      keeping the colours saturated — see the scene-setup notes above.</li>
+</ul>
+
+<h2>Part 4 — Cycles (Blender) vs. a customizable WebGPU renderer</h2>
+<p>
+<strong>Working in Cycles is faster to a good-looking result.</strong> It ships a production path tracer
+with importance-sampled HDRI lighting, multiple importance sampling, a denoiser, and the single
+<em>Principled BSDF</em> that expresses mirror, glossy metal, glass, subsurface, coat and sheen from one
+node — all of which we had to derive and implement by hand in WebGPU (Fresnel, the BSDF sampling, the
+accumulation buffer, the BSP traversal). Modelling, material authoring, lighting and rendering live in
+one tool, so composing a scene — placing the quad, importing a mesh, framing a camera — takes minutes,
+and the built-in <em>shadow catcher</em> gives us the holdout compositing we wrote manually in Week 9.
+</p>
+<p>
+<strong>What we lose, and what WebGPU enables.</strong> Cycles is essentially a black box: we configure
+it but we do not control the integrator. In our WebGPU renderer we own every line of the rendering
+equation, so we can change the sampling strategy, implement a novel or non-physical BRDF, instrument the
+algorithm for teaching, choose our own acceleration structure, and run interactively in any browser with
+no installation. That transparency and customizability is exactly what a course renderer is for, and it
+is what Cycles deliberately hides.
+</p>
+<p>
+<strong>What in Cycles would be hard to reproduce in WebGPU.</strong> The full Principled BSDF
+(physically based metallic/dielectric mixing, subsurface scattering, thin-film, coat) and its correct
+multiple importance sampling; the OpenImageDenoise/OptiX neural denoiser; robust heterogeneous
+<em>volumetrics</em>; spectral rendering; <em>manifold next-event estimation</em> for clean caustics
+through glass; adaptive sampling; and the surrounding production pipeline (hair, particles, an efficient
+GPU wavefront scheduler). Each of these is a substantial project on its own — together they represent
+years of engineering that a from-scratch WebGPU ray tracer cannot match.
+</p>
+
+<h2>Deliverables checklist</h2>
+<table>
+  <tr><th>Required deliverable</th><th>Where</th></tr>
+  <tr><td>Mirror sphere and cube in a photographed environment with shadows on a holdout plane</td>
+      <td>Part 1</td></tr>
+  <tr><td>Metallic sphere and glass cube in a photographed environment</td><td>Part 2</td></tr>
+  <tr><td>Other object(s) in a photographed environment with a realistic material shader</td>
+      <td>Part 3 (gold Stanford bunny)</td></tr>
+  <tr><td>Explanation of material settings and rendering parameters</td><td>Part 3 text</td></tr>
+  <tr><td>Discussion: Cycles vs. WebGPU</td><td>Part 4</td></tr>
+</table>
+
+</body>
+</html>

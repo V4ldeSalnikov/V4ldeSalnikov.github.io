@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>W01P2 – Aspect ratio + precomputed basis</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script defer src="MV.js"></script>
+  <script defer src="Worksheet1-2.js"></script>
+  <style>
+    html, body { margin: 0; height: 100%; background: #222; }
+    canvas { display: block; margin: auto; }
+  </style>
+</head>
+<body>
+  <canvas id="my-canvas" width="600" height="800"></canvas>
+
+  <script id="ray-wgsl-2" type="wgsl">
+    struct VSOut {
+      @builtin(position) position : vec4f,
+      @location(0)       coords   : vec2f,
+    };
+
+    struct Uniforms {
+      eye     : vec4f,
+      right   : vec4f,
+      up      : vec4f,
+      forward : vec4f,
+      params  : vec4f,
+    };
+    @group(0) @binding(0) var<uniform> U : Uniforms;
+
+    @vertex
+    fn vs_main(@builtin(vertex_index) vid: u32) -> VSOut {
+      var positions = array<vec2f, 4>(
+        vec2f(-1.0, -1.0),
+        vec2f( 1.0, -1.0),
+        vec2f(-1.0,  1.0),
+        vec2f( 1.0,  1.0)
+      );
+      var out : VSOut;
+      out.position = vec4f(positions[vid], 0.0, 1.0);
+      out.coords   = positions[vid];
+      return out;
+    }
+
+    struct Ray {
+      origin    : vec3f,
+      direction : vec3f,
+    };
+
+    fn get_camera_ray(ipcoords: vec2f) -> Ray {
+      var ray : Ray;
+      ray.origin    = U.eye.xyz;
+      ray.direction = normalize(ipcoords.x * U.right.xyz
+                              + ipcoords.y * U.up.xyz
+                              + U.params.y * U.forward.xyz);
+      return ray;
+    }
+
+    @fragment
+    fn fs_main(in: VSOut) -> @location(0) vec4f {
+      let ipcoords = vec2f(in.coords.x * U.params.x, in.coords.y) * 0.5;
+      let r = get_camera_ray(ipcoords);
+      return vec4f(r.direction * 0.5 + 0.5, 1.0);
+    }
+  </script>
+</body>
+</html>

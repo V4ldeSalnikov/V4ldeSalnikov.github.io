@@ -1,0 +1,142 @@
+---
+import Base from '../../../layouts/Base.astro';
+
+const base = '/coursework/rendering';
+// Build a URL into the static exercise tree, encoding the spaces in "Week 6".."Week 9".
+const href = (dir: string, file: string) => encodeURI(`${base}/${dir}/${file}`);
+
+type Ex = { label: string; file: string; kind?: 'doc' };
+type Week = { n: number; dir: string; title: string; exercises: Ex[] };
+
+const weeks: Week[] = [
+  { n: 1, dir: 'Week1', title: 'Getting started — camera rays', exercises: [
+    { label: '1a · Clear to black', file: 'Worksheet1-1a.html' },
+    { label: '1b · Coloured rectangle', file: 'Worksheet1-1b.html' },
+    { label: '1c · Pinhole camera rays', file: 'Worksheet1-1c.html' },
+    { label: '2 · Aspect ratio + camera basis', file: 'Worksheet1-2.html' },
+    { label: '3 · Ray–object intersections', file: 'Worksheet1-3.html' },
+    { label: '4 · Diffuse shading', file: 'Worksheet1-4.html' },
+    { label: '5 · Interactive camera zoom', file: 'Worksheet1-5.html' },
+  ]},
+  { n: 2, dir: 'Week2', title: 'Shadows, mirrors & glass', exercises: [
+    { label: '1 · Hard shadows', file: 'Worksheet2-1.html' },
+    { label: '2 · Mirror reflections', file: 'Worksheet2-2.html' },
+    { label: '3 · Refraction', file: 'Worksheet2-3.html' },
+    { label: '4 · Phong illumination', file: 'Worksheet2-4.html' },
+    { label: '5 · Glossy (Phong + refraction)', file: 'Worksheet2-5.html' },
+  ]},
+  { n: 3, dir: 'Week3', title: 'Textures & sampling', exercises: [
+    { label: '1 · Texture addressing & filtering', file: 'Worksheet3-1.html' },
+    { label: '2 · Plane texturing', file: 'Worksheet3-2.html' },
+    { label: '3 · Stratified jitter sampling', file: 'Worksheet3-3.html' },
+    { label: '4 · Texture filtering exploration', file: 'Worksheet3-4.html' },
+  ]},
+  { n: 4, dir: 'Week4', title: 'Radiometry & photometry', exercises: [
+    { label: 'Written solutions', file: 'Worksheet4-solutions.html', kind: 'doc' },
+  ]},
+  { n: 5, dir: 'Week5', title: 'Triangle meshes', exercises: [
+    { label: '1 · Indexed triangle mesh', file: 'Worksheet5-1.html' },
+    { label: '2 · Teapot, directional light', file: 'Worksheet5-2.html' },
+    { label: '3 · Smooth shading (interpolated normals)', file: 'Worksheet5-3.html' },
+    { label: '4 · Cornell box materials', file: 'Worksheet5-4.html' },
+    { label: '5 · Cornell box with an area light', file: 'Worksheet5-5.html' },
+  ]},
+  { n: 6, dir: 'Week 6', title: 'Acceleration — BSP trees', exercises: [
+    { label: '1 · AABB test & GPU timing', file: 'Worksheet6-1.html' },
+    { label: '2 · BSP tree traversal', file: 'Worksheet6-2.html' },
+    { label: '3 · Cornell box on a BSP tree', file: 'Worksheet6-3.html' },
+    { label: '4 · BSP Cornell box with spheres', file: 'Worksheet6-4.html' },
+  ]},
+  { n: 7, dir: 'Week 7', title: 'Path tracing', exercises: [
+    { label: '1 · Progressive Cornell box', file: 'Worksheet7-1.html' },
+    { label: '2 · Soft shadows (area-light sampling)', file: 'Worksheet7-2.html' },
+    { label: '3 · Path-traced indirect illumination', file: 'Worksheet7-3.html' },
+  ]},
+  { n: 8, dir: 'Week 8', title: 'Transparency & caustics', exercises: [
+    { label: '1 · Fresnel transparent sphere', file: 'Worksheet8-1.html' },
+    { label: '2 · Caustics with indirect illumination', file: 'Worksheet8-2.html' },
+    { label: '3 · Absorption in the glass sphere', file: 'Worksheet8-3.html' },
+  ]},
+  { n: 9, dir: 'Week 9', title: 'Environment lighting (HDR)', exercises: [
+    { label: '1 · Environment-mapped object', file: 'Worksheet9-1.html' },
+    { label: '2 · HDR environment + holdout', file: 'Worksheet9-2.html' },
+    { label: '3 · Environment + directional sun', file: 'Worksheet9-3.html' },
+    { label: '4 · Bryanston Park HDRI', file: 'Worksheet9-4.html' },
+  ]},
+  { n: 10, dir: 'Week10', title: 'Production rendering (Blender)', exercises: [
+    { label: 'Lab journal — synthetic objects in a photographed environment', file: 'Worksheet10.html', kind: 'doc' },
+  ]},
+];
+---
+
+<Base title="Rendering — Coursework">
+  <section class="max-w-3xl mx-auto px-6 py-12">
+    <p style="margin: 0 0 1.5rem;">
+      <a href="/coursework/" class="plain" style="color: var(--color-fg-dim); font-family: var(--font-sans); font-size: 0.85rem;">← Coursework</a>
+    </p>
+    <h1 style="font-family: var(--font-serif); font-size: 2rem; margin: 0 0 0.4rem;">Rendering</h1>
+    <p style="color: var(--color-fg-dim); margin-bottom: 1rem;">
+      DTU 02562 · physically based ray tracing built from scratch in WebGPU. Each week's exercises
+      run live in the browser — pick one below.
+    </p>
+    <p class="hint">
+      Interactive exercises render with <strong>WebGPU</strong>; open them in Chrome or Edge (or Safari&nbsp;18+).
+      The progressive path tracers (Weeks&nbsp;7–9) sharpen over a second or two as samples accumulate.
+    </p>
+
+    {weeks.map((w) => (
+      <section class="week">
+        <h2>Week {w.n} <span class="wt">— {w.title}</span></h2>
+        <ul>
+          {w.exercises.map((e) => (
+            <li>
+              <a href={href(w.dir, e.file)}>{e.label}</a>
+              {e.kind === 'doc' && <span class="badge">document</span>}
+            </li>
+          ))}
+        </ul>
+      </section>
+    ))}
+  </section>
+</Base>
+
+<style>
+  .hint {
+    color: var(--color-fg-muted);
+    font-family: var(--font-sans);
+    font-size: 0.82rem;
+    line-height: 1.5;
+    border: 1px solid var(--color-line);
+    border-radius: 6px;
+    padding: 0.7rem 0.9rem;
+    margin: 0 0 2.5rem;
+  }
+  .week { padding: 1.1rem 0; border-bottom: 1px solid var(--color-line); }
+  .week:last-child { border-bottom: 0; }
+  .week h2 {
+    font-family: var(--font-sans);
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin: 0 0 0.6rem;
+    color: var(--color-fg);
+  }
+  .week h2 .wt { color: var(--color-fg-dim); font-weight: 400; }
+  .week ul { list-style: none; margin: 0; padding: 0; }
+  .week li {
+    display: flex;
+    align-items: baseline;
+    gap: 0.6rem;
+    padding: 0.18rem 0;
+    font-family: var(--font-sans);
+    font-size: 0.92rem;
+  }
+  .week li a { border-bottom: 0; }
+  .week li a:hover { border-bottom: 1px solid var(--color-accent); }
+  .badge {
+    font-size: 0.68rem;
+    color: var(--color-fg-muted);
+    border: 1px solid var(--color-line);
+    border-radius: 4px;
+    padding: 0 0.35rem;
+  }
+</style>

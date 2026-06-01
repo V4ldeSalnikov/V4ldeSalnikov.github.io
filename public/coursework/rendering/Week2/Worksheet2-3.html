@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>W02P3 – Refraction</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script defer src="../Week1/MV.js"></script>
+  <script defer src="Worksheet2-3.js"></script>
+  <style>
+    html, body { margin: 0; height: 100%; background: #222; color: #ddd; font-family: sans-serif; }
+    main { display: flex; flex-direction: column; align-items: center; gap: 1rem; padding: 1.5rem 0; }
+    canvas { display: block; border: 1px solid #444; }
+    .controls { display: flex; gap: 1.5rem; align-items: center; flex-wrap: wrap; justify-content: center; }
+    label { display: flex; align-items: center; gap: 0.5rem; }
+    select { padding: 0.25rem 0.5rem; }
+  </style>
+</head>
+<body>
+  <main>
+    <canvas id="my-canvas" width="600" height="600"></canvas>
+    <div class="controls">
+      <label>
+        Matte shader
+        <select id="matte-shader">
+          <option value="0">Base colour</option>
+          <option value="1" selected>Lambertian</option>
+        </select>
+      </label>
+      <label>
+        Sphere shader
+        <select id="sphere-shader">
+          <option value="0">Base colour</option>
+          <option value="1">Lambertian</option>
+          <option value="3">Mirror</option>
+          <option value="4" selected>Refractive</option>
+        </select>
+      </label>
+    </div>
+  </main>
+
+  <script id="raytracing-wgsl" type="wgsl">
+    struct VSOut {
+      @builtin(position) position : vec4f,
+      @location(0)       coords   : vec2f,
+    };
+
+    struct Uniforms {
+      eye             : vec4f,
+      right           : vec4f,
+      up              : vec4f,
+      forward         : vec4f,
+      params          : vec4f,
+      plane_point     : vec4f,
+      plane_normal    : vec4f,
+      plane_ambient   : vec4f,
+      plane_diffuse   : vec4f,
+      plane_specular  : vec4f,
+      sphere          : vec4f,
+      sphere_ambient  : vec4f,
+      sphere_diffuse  : vec4f,
+      sphere_specular : vec4f,
+      tri_v0          : vec4f,
+      tri_v1          : vec4f,
+      tri_v2          : vec4f,
+      tri_ambient     : vec4f,
+      tri_diffuse     : vec4f,
+      tri_specular    : vec4f,
+      background      : vec4f,
+      light_position  : vec4f,
+      light_intensity : vec4f,
+    };
+    @group(0) @binding(0) var<uniform> U : Uniforms;
+
+    struct Ray {
+      origin    : vec3f,
+      direction : vec3f,
+    };
+
+    struct HitInfo {
+      hit            : bool,
+      t              : f32,
+      position       : vec3f,
+      normal         : vec3f,
+      ambient        : vec3f,
+      diffuse        : vec3f,
+      specular       : vec3f,
+      shininess      : f32,
+      shader         : u32,
+      ior            : f32,
+      continue_trace : bool,
+      attenuation    : vec3f,
+    };
+
+    struct Light {
+      Li   : vec3f,
+      wi   : vec3f,
+      dist : f32,
+    };
+
+    const PI : f32 = 3.14159265358979;
+    const MAX_DEPTH : u32 = 10u;
+    const SHADER_BASE       : u32 = 0u;
+    const SHADER_LAMBERTIAN : u32 = 1u;
+    const SHADER_MIRROR     : u32 = 3u;
+    const SHADER_REFRACTIVE : u32 = 4u;
+
+    @vertex
+    fn vs_main(@builtin(vertex_index) vid: u32) -> VSOut {
+      var positions = array<vec2f, 4>(
+        vec2f(-1.0, -1.0),
+        vec2f( 1.0, -1.0),
+        vec2f(-1.0,  1.0),
+        vec2f( 1.0,  1.0)
+      );
+      var out : VSOut;
+      out.position = vec4f(positions[vid], 0.0, 1.0);
+      out.coords   = positions[vid];
+      return out;
+    }
+
+    fn face_forward(n: vec3f, dir: vec3f) -> vec3f {
+      let un = normalize(n);
+      return select(un, -un, dot(un, dir) > 0.0);
+    }
+
+    fn get_camera_ray(ipcoords: vec2f) -> Ray {
+      var ray : Ray;
+      ray.origin    = U.eye.xyz;
+      ray.direction = normalize(ipcoords.x * U.right.xyz
+                              + ipcoords.y * U.up.xyz
+                              + U.params.y * U.forward.xyz);
+      return ray;
+    }
+
+    fn intersect_plane(ray: Ray, point: vec3f, normal: vec3f) -> f32 {
+      let denom = dot(normal, ray.direction);
+      if (abs(denom) < 1e-8) { return -1.0; }
+      return dot(point - ray.origin, normal) / denom;
+    }
+
+    fn intersect_sphere(ray: Ray, center: vec3f, radius: f32) -> f32 {
+      let oc = ray.origin - center;
+      let b = dot(oc, ray.direction);
+      let c = dot(oc, oc) - radius * radius;
+      let disc = b * b - c;
+      if (disc < 0.0) { return -1.0; }
+      let sqrt_disc = sqrt(disc);
+      let t_near = -b - sqrt_disc;
+      if (t_near > 1e-4) { return t_near; }
+      return -b + sqrt_disc;
+    }
+
+    fn intersect_triangle(ray: Ray, v0: vec3f, v1: vec3f, v2: vec3f) -> f32 {
+      let edge1 = v1 - v0;
+      let edge2 = v2 - v0;
+      let pvec = cross(ray.direction, edge2);
+      let det = dot(edge1, pvec);
+      if (abs(det) < 1e-8) { return -1.0; }
+      let inv_det = 1.0 / det;
+      let tvec = ray.origin - v0;
+      let u = dot(tvec, pvec) * inv_det;
+      let qvec = cross(tvec, edge1);
+      let v = dot(ray.direction, qvec) * inv_det;
+      if (u < 0.0 || v < 0.0 || u + v > 1.0) { return -1.0; }
+      return dot(edge2, qvec) * inv_det;
+    }
+
+    fn intersect_scene(ray: Ray) -> HitInfo {
+      var hit : HitInfo;
+      hit.hit = false;
+      hit.t = 1e9;
+      hit.ior = 1.0;
+
+      let t_plane = intersect_plane(ray, U.plane_point.xyz, U.plane_normal.xyz);
+      if (t_plane > 1e-4 && t_plane < hit.t) {
+        hit.hit = true; hit.t = t_plane;
+        hit.position = ray.origin + t_plane * ray.direction;
+        hit.normal = face_forward(U.plane_normal.xyz, ray.direction);
+        hit.ambient = U.plane_ambient.xyz; hit.diffuse = U.plane_diffuse.xyz;
+        hit.specular = U.plane_specular.xyz; hit.shininess = U.plane_specular.w;
+        hit.shader = u32(U.plane_normal.w);
+      }
+
+      let t_sphere = intersect_sphere(ray, U.sphere.xyz, U.sphere.w);
+      if (t_sphere > 1e-4 && t_sphere < hit.t) {
+        hit.hit = true; hit.t = t_sphere;
+        hit.position = ray.origin + t_sphere * ray.direction;
+        let outward_n = normalize(hit.position - U.sphere.xyz);
+        hit.normal = face_forward(outward_n, ray.direction);
+        let entering = dot(ray.direction, outward_n) < 0.0;
+        let material_ior = U.sphere_diffuse.w;
+        hit.ior = select(material_ior, 1.0 / material_ior, entering);
+        hit.ambient = U.sphere_ambient.xyz; hit.diffuse = U.sphere_diffuse.xyz;
+        hit.specular = U.sphere_specular.xyz; hit.shininess = U.sphere_specular.w;
+        hit.shader = u32(U.sphere_ambient.w);
+      }
+
+      let t_tri = intersect_triangle(ray, U.tri_v0.xyz, U.tri_v1.xyz, U.tri_v2.xyz);
+      if (t_tri > 1e-4 && t_tri < hit.t) {
+        hit.hit = true; hit.t = t_tri;
+        hit.position = ray.origin + t_tri * ray.direction;
+        hit.normal = face_forward(cross(U.tri_v1.xyz - U.tri_v0.xyz, U.tri_v2.xyz - U.tri_v0.xyz), ray.direction);
+        hit.ambient = U.tri_ambient.xyz; hit.diffuse = U.tri_diffuse.xyz;
+        hit.specular = U.tri_specular.xyz; hit.shininess = U.tri_specular.w;
+        hit.shader = u32(U.tri_v2.w);
+      }
+      return hit;
+    }
+
+    fn is_occluded(origin: vec3f, dir: vec3f, max_dist: f32) -> bool {
+      let ray = Ray(origin, dir);
+      let t_plane = intersect_plane(ray, U.plane_point.xyz, U.plane_normal.xyz);
+      if (t_plane > 1e-4 && t_plane < max_dist) { return true; }
+      let t_sphere = intersect_sphere(ray, U.sphere.xyz, U.sphere.w);
+      if (t_sphere > 1e-4 && t_sphere < max_dist) { return true; }
+      let t_tri = intersect_triangle(ray, U.tri_v0.xyz, U.tri_v1.xyz, U.tri_v2.xyz);
+      if (t_tri > 1e-4 && t_tri < max_dist) { return true; }
+      return false;
+    }
+
+    fn sample_point_light(pos: vec3f) -> Light {
+      let to_light = U.light_position.xyz - pos;
+      let dist = length(to_light);
+      return Light(U.light_intensity.xyz / (dist * dist), to_light / dist, dist);
+    }
+
+    fn lambertian(r: ptr<function, Ray>, hit: ptr<function, HitInfo>) -> vec3f {
+      var Lo = (*hit).ambient;
+      let light = sample_point_light((*hit).position);
+      let shadow_origin = (*hit).position + 1e-3 * (*hit).normal;
+      if (!is_occluded(shadow_origin, light.wi, light.dist)) {
+        let n_dot_l = max(dot((*hit).normal, light.wi), 0.0);
+        Lo += (*hit).diffuse / PI * light.Li * n_dot_l;
+      }
+      return Lo;
+    }
+
+    fn mirror(r: ptr<function, Ray>, hit: ptr<function, HitInfo>) -> vec3f {
+      (*hit).continue_trace = true;
+      (*hit).attenuation = vec3f(1.0);
+      (*r).origin = (*hit).position + 1e-3 * (*hit).normal;
+      (*r).direction = normalize(reflect((*r).direction, (*hit).normal));
+      return vec3f(0.0);
+    }
+
+    fn refractive(r: ptr<function, Ray>, hit: ptr<function, HitInfo>) -> vec3f {
+      (*hit).continue_trace = true;
+      (*hit).attenuation = vec3f(1.0);
+      let n = (*hit).normal;
+      let refracted = refract((*r).direction, n, (*hit).ior);
+      if (dot(refracted, refracted) < 1e-8) {
+        (*r).direction = normalize(reflect((*r).direction, n));
+      } else {
+        (*r).direction = normalize(refracted);
+      }
+      (*r).origin = (*hit).position + 1e-3 * (*r).direction;
+      return vec3f(0.0);
+    }
+
+    fn shade(r: ptr<function, Ray>, hit: ptr<function, HitInfo>) -> vec3f {
+      (*hit).continue_trace = false;
+      (*hit).attenuation = vec3f(1.0);
+      switch ((*hit).shader) {
+        case SHADER_LAMBERTIAN: { return lambertian(r, hit); }
+        case SHADER_MIRROR: { return mirror(r, hit); }
+        case SHADER_REFRACTIVE: { return refractive(r, hit); }
+        default: { return (*hit).ambient + (*hit).diffuse; }
+      }
+    }
+
+    @fragment
+    fn fs_main(in: VSOut) -> @location(0) vec4f {
+      let ipcoords = vec2f(in.coords.x * U.params.x, in.coords.y) * 0.5;
+      var ray = get_camera_ray(ipcoords);
+
+      var result = vec3f(0.0);
+      var throughput = vec3f(1.0);
+      for (var depth : u32 = 0u; depth < MAX_DEPTH; depth = depth + 1u) {
+        var hit = intersect_scene(ray);
+        if (!hit.hit) {
+          result += throughput * U.background.xyz;
+          break;
+        }
+        result += throughput * shade(&ray, &hit);
+        if (!hit.continue_trace) {
+          break;
+        }
+        throughput *= hit.attenuation;
+      }
+      return vec4f(result, 1.0);
+    }
+  </script>
+</body>
+</html>

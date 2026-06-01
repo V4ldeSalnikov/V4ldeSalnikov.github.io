@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>W08P1 - Fresnel transparent sphere</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script defer src="../Week1/MV.js"></script>
+  <script defer src="../Week%206/bsptree/Aabb.js"></script>
+  <script defer src="../Week%206/bsptree/BspTree_interleaved.js"></script>
+  <script defer src="../Week%206/bsptree/TimingHelper.js"></script>
+  <script defer src="../Week%206/bsptree/OBJParser_interleaved.js"></script>
+  <script defer src="Worksheet8-1.js"></script>
+  <style>
+    html, body { margin: 0; min-height: 100%; background: #050505; color: #f0f0f0; font-family: system-ui, sans-serif; }
+    body { display: grid; place-content: center; gap: 10px; }
+    #toolbar { display: flex; align-items: center; gap: 12px; font-size: 14px; }
+    label { display: flex; align-items: center; gap: 6px; }
+    button { padding: 5px 10px; border: 1px solid #777; background: #242424; color: #f0f0f0; cursor: pointer; }
+    button:hover { background: #303030; }
+    canvas { display: block; }
+  </style>
+</head>
+<body>
+  <div id="toolbar">
+    <span id="gpu-time">GPU frame: waiting...</span>
+    <span id="frame-count">Samples: 0</span>
+    <label><input id="progressive-toggle" type="checkbox" checked /> Progressive</label>
+    <button id="render-button" type="button">Reset</button>
+  </div>
+
+  <canvas id="my-canvas" width="512" height="512">
+    Please use a browser that supports WebGPU.
+  </canvas>
+
+  <script id="raytracing-wgsl" type="wgsl">
+struct VSOut {
+  @builtin(position) position : vec4f,
+  @location(0)       coords   : vec2f,
+};
+
+struct FSOut {
+  @location(0) frame : vec4f,
+  @location(1) accum : vec4f,
+};
+
+struct Uniforms {
+  eye         : vec4f,
+  right       : vec4f,
+  up          : vec4f,
+  forward     : vec4f,
+  params      : vec4f,
+  lightCenter : vec4f,
+  frameInfo   : vec4f,
+  background  : vec4f,
+};
+
+struct VertexAttrib { position : vec3f, normal : vec3f };
+struct Material      { emission : vec3f, diffuse : vec3f };
+struct Aabb          { min : vec3f, max : vec3f };
+
+struct Ray { origin : vec3f, direction : vec3f, tmin : f32, tmax : f32 };
+struct HitInfo {
+  hit      : bool,
+  t        : f32,
+  position : vec3f,
+  normal   : vec3f,
+  diffuse  : vec3f,
+  emission : vec3f,
+  shader   : u32,
+  ior      : f32,
+};
+struct TriHit { t : f32, beta : f32, gamma : f32 };
+struct Light  { Li : vec3f, wi : vec3f, dist : f32 };
+
+@group(0) @binding(0) var<uniform> U : Uniforms;
+@group(0) @binding(1) var<storage, read> attribs    : array<VertexAttrib>;
+@group(0) @binding(2) var<storage, read> meshFaces  : array<vec4u>;
+@group(0) @binding(3) var<storage, read> materials  : array<Material>;
+@group(0) @binding(4) var<storage, read> lightFaces : array<u32>;
+@group(0) @binding(5) var<uniform> aabb : Aabb;
+@group(0) @binding(6) var<storage, read> treeIds   : array<u32>;
+@group(0) @binding(7) var<storage, read> bspTree   : array<vec4u>;
+@group(0) @binding(8) var<storage, read> bspPlanes : array<f32>;
+@group(0) @binding(9) var previousFrame : texture_2d<f32>;
+
+const PI : f32 = 3.14159265358979;
+const MAX_LEVEL : u32 = 20u;
+const BSP_LEAF  : u32 = 3u;
+const INTERVAL_EPS : f32 = 1e-4;
+const MAX_DEPTH : u32 = 10u;
+
+const SHADER_DIFFUSE : u32 = 0u;
+const SHADER_MIRROR  : u32 = 1u;
+const SHADER_GLASS   : u32 = 2u;
+
+const MIRROR_CENTER : vec3f = vec3f(420.0, 90.0, 370.0);
+const GLASS_CENTER  : vec3f = vec3f(130.0, 90.0, 250.0);
+const SPHERE_RADIUS : f32 = 90.0;
+const GLASS_IOR : f32 = 1.5;
+
+fn tea(val0: u32, val1: u32) -> u32 {
+  const N = 16u;
+  var v0 = val0; var v1 = val1; var s0 = 0u;
+  for (var n = 0u; n < N; n = n + 1u) {
+    s0 += 0x9e3779b9u;
+    v0 += ((v1 << 4u) + 0xa341316cu) ^ (v1 + s0) ^ ((v1 >> 5u) + 0xc8013ea4u);
+    v1 += ((v0 << 4u) + 0xad90777du) ^ (v0 + s0) ^ ((v0 >> 5u) + 0x7e95761eu);
+  }
+  return v0;
+}
+
+fn mcg31(prev: ptr<function, u32>) -> u32 {
+  const LCG_A = 1977654935u;
+  *prev = (LCG_A * (*prev)) & 0x7FFFFFFFu;
+  return *prev;
+}
+
+fn rnd(prev: ptr<function, u32>) -> f32 {
+  return f32(mcg31(prev)) / f32(0x80000000u);
+}
+
+fn fresnel_R(cos_i: f32, cos_t: f32, eta: f32) -> f32 {
+  if (cos_t <= 0.0) { return 1.0; }
+  let r_perp = (eta * cos_i - cos_t) / (eta * cos_i + cos_t);
+  let r_para = (cos_i - eta * cos_t) / (cos_i + eta * cos_t);
+  return 0.5 * (r_perp * r_perp + r_para * r_para);
+}
+
+@vertex
+fn vs_main(@builtin(vertex_index) vid: u32) -> VSOut {
+  var positions = array<vec2f, 4>(
+    vec2f(-1.0, -1.0),
+    vec2f( 1.0, -1.0),
+    vec2f(-1.0,  1.0),
+    vec2f( 1.0,  1.0)
+  );
+  var out : VSOut;
+  out.position = vec4f(positions[vid], 0.0, 1.0);
+  out.coords   = positions[vid];
+  return out;
+}
+
+fn face_forward(n: vec3f, dir: vec3f) -> vec3f {
+  let un = normalize(n);
+  return select(un, -un, dot(un, dir) > 0.0);
+}
+
+fn get_camera_ray(ipcoords: vec2f) -> Ray {
+  let dir = normalize(ipcoords.x * U.right.xyz + ipcoords.y * U.up.xyz + U.params.y * U.forward.xyz);
+  return Ray(U.eye.xyz, dir, 1e-3, 1e9);
+}
+
+fn intersect_min_max(r: ptr<function, Ray>) -> bool {
+  let p1 = (aabb.min - (*r).origin) / (*r).direction;
+  let p2 = (aabb.max - (*r).origin) / (*r).direction;
+  let pmin = min(p1, p2);
+  let pmax = max(p1, p2);
+  let tmin = max(pmin.x, max(pmin.y, pmin.z)) - 1e-4;
+  let tmax = min(pmax.x, min(pmax.y, pmax.z)) + 1e-4;
+  if (tmin > tmax || tmin > (*r).tmax || tmax < (*r).tmin) { return false; }
+  (*r).tmin = max(tmin, (*r).tmin);
+  (*r).tmax = min(tmax, (*r).tmax);
+  return true;
+}
+
+fn intersect_triangle(ray: Ray, face_index: u32) -> TriHit {
+  let f = meshFaces[face_index];
+  let v0 = attribs[f.x].position;
+  let v1 = attribs[f.y].position;
+  let v2 = attribs[f.z].position;
+  let edge1 = v1 - v0;
+  let edge2 = v2 - v0;
+  let pvec = cross(ray.direction, edge2);
+  let det = dot(edge1, pvec);
+  if (abs(det) < 1e-8) { return TriHit(-1.0, 0.0, 0.0); }
+  let inv_det = 1.0 / det;
+  let tvec = ray.origin - v0;
+  let beta = dot(tvec, pvec) * inv_det;
+  let qvec = cross(tvec, edge1);
+  let gamma = dot(ray.direction, qvec) * inv_det;
+  if (beta < 0.0 || gamma < 0.0 || beta + gamma > 1.0) { return TriHit(-1.0, 0.0, 0.0); }
+  let t = dot(edge2, qvec) * inv_det;
+  let eps = max(INTERVAL_EPS, 1e-5 * ray.tmax);
+  if (t > ray.tmin - eps && t < ray.tmax + eps) { return TriHit(t, beta, gamma); }
+  return TriHit(-1.0, 0.0, 0.0);
+}
+
+fn interpolate_normal(f: vec4u, beta: f32, gamma: f32) -> vec3f {
+  let alpha = 1.0 - beta - gamma;
+  return normalize(alpha * attribs[f.x].normal + beta * attribs[f.y].normal + gamma * attribs[f.z].normal);
+}
+
+fn make_mesh_hit(ray: Ray, tri: TriHit, face_index: u32) -> HitInfo {
+  let f = meshFaces[face_index];
+  let mat = materials[f.w];
+  var hit : HitInfo;
+  hit.hit = true;
+  hit.t = tri.t;
+  hit.position = ray.origin + tri.t * ray.direction;
+  hit.normal = face_forward(interpolate_normal(f, tri.beta, tri.gamma), ray.direction);
+  hit.diffuse = mat.diffuse;
+  hit.emission = mat.emission;
+  hit.shader = SHADER_DIFFUSE;
+  return hit;
+}
+
+fn intersect_trimesh(ray_in: Ray) -> HitInfo {
+  var ray = ray_in;
+  var hit : HitInfo;
+  hit.hit = false;
+  hit.t = ray.tmax;
+  if (!intersect_min_max(&ray)) { return hit; }
+
+  var branch_node : array<vec2u, MAX_LEVEL>;
+  var branch_ray  : array<vec2f, MAX_LEVEL>;
+  var branch_lvl = 0u;
+  var node = 0u;
+
+  for (var i = 0u; i <= MAX_LEVEL; i = i + 1u) {
+    let tree_node = bspTree[node];
+    let axis_leaf = tree_node.x & 3u;
+    if (axis_leaf == BSP_LEAF) {
+      let count = tree_node.x >> 2u;
+      let id = tree_node.y;
+      var found = false;
+      for (var j = 0u; j < count; j = j + 1u) {
+        let face_index = treeIds[id + j];
+        let tri = intersect_triangle(ray, face_index);
+        if (tri.t > 0.0) { hit = make_mesh_hit(ray, tri, face_index); ray.tmax = tri.t; found = true; }
+      }
+      if (found) { return hit; }
+      if (branch_lvl == 0u) { return hit; }
+      branch_lvl = branch_lvl - 1u;
+      i = branch_node[branch_lvl].x;
+      node = branch_node[branch_lvl].y;
+      ray.tmin = branch_ray[branch_lvl].x;
+      ray.tmax = branch_ray[branch_lvl].y;
+      continue;
+    }
+    let axis = axis_leaf;
+    let dir_axis = ray.direction[axis];
+    var near_node = tree_node.z;
+    var far_node = tree_node.w;
+    if (dir_axis < 0.0) { near_node = tree_node.w; far_node = tree_node.z; }
+    let denom = select(dir_axis, 1e-8, abs(dir_axis) < 1e-8);
+    let t = (bspPlanes[node] - ray.origin[axis]) / denom;
+    if (t > ray.tmax) {
+      node = near_node;
+    } else if (t < ray.tmin) {
+      node = far_node;
+    } else {
+      branch_node[branch_lvl] = vec2u(i, far_node);
+      branch_ray[branch_lvl] = vec2f(t, ray.tmax);
+      branch_lvl = branch_lvl + 1u;
+      ray.tmax = t;
+      node = near_node;
+    }
+  }
+  return hit;
+}
+
+fn intersect_sphere(ray: Ray, center: vec3f, radius: f32) -> f32 {
+  let oc = ray.origin - center;
+  let b = dot(oc, ray.direction);
+  let c = dot(oc, oc) - radius * radius;
+  let disc = b * b - c;
+  if (disc < 0.0) { return -1.0; }
+  let sqrt_disc = sqrt(disc);
+  let t0 = -b - sqrt_disc;
+  if (t0 > ray.tmin) { return t0; }
+  let t1 = -b + sqrt_disc;
+  if (t1 > ray.tmin) { return t1; }
+  return -1.0;
+}
+
+fn intersect_scene(ray: Ray) -> HitInfo {
+  var hit = intersect_trimesh(ray);
+
+  let t_mirror = intersect_sphere(ray, MIRROR_CENTER, SPHERE_RADIUS);
+  if (t_mirror > ray.tmin && t_mirror < hit.t) {
+    hit.hit = true;
+    hit.t = t_mirror;
+    hit.position = ray.origin + t_mirror * ray.direction;
+    hit.normal = face_forward(hit.position - MIRROR_CENTER, ray.direction);
+    hit.emission = vec3f(0.0);
+    hit.shader = SHADER_MIRROR;
+  }
+
+  let t_glass = intersect_sphere(ray, GLASS_CENTER, SPHERE_RADIUS);
+  if (t_glass > ray.tmin && t_glass < hit.t) {
+    hit.hit = true;
+    hit.t = t_glass;
+    hit.position = ray.origin + t_glass * ray.direction;
+    let outward = normalize(hit.position - GLASS_CENTER);
+    let entering = dot(ray.direction, outward) < 0.0;
+    hit.normal = select(-outward, outward, entering);
+    hit.ior = select(GLASS_IOR, 1.0 / GLASS_IOR, entering);
+    hit.emission = vec3f(0.0);
+    hit.shader = SHADER_GLASS;
+  }
+
+  return hit;
+}
+
+fn sample_area_light(x: vec3f, seed: ptr<function, u32>) -> Light {
+  let light_count = u32(U.params.w);
+  let k = min(u32(rnd(seed) * f32(light_count)), light_count - 1u);
+  let f = meshFaces[lightFaces[k]];
+  let v0 = attribs[f.x].position;
+  let v1 = attribs[f.y].position;
+  let v2 = attribs[f.z].position;
+  let xi1 = rnd(seed);
+  let xi2 = rnd(seed);
+  let su = sqrt(xi1);
+  let xl = (1.0 - su) * v0 + (1.0 - xi2) * su * v1 + xi2 * su * v2;
+  let e_cross = cross(v1 - v0, v2 - v0);
+  let ne = normalize(e_cross);
+  let area = 0.5 * length(e_cross);
+  let to_light = xl - x;
+  let r = length(to_light);
+  let wi = to_light / r;
+  let cos_l = max(-dot(wi, ne), 0.0);
+  let Li = materials[f.w].emission * cos_l / (r * r) * f32(light_count) * area;
+  return Light(Li, wi, r);
+}
+
+fn is_occluded(origin: vec3f, dir: vec3f, max_dist: f32) -> bool {
+  let hit = intersect_scene(Ray(origin, dir, 1e-2, max_dist));
+  return hit.hit && all(hit.emission <= vec3f(0.0));
+}
+
+fn direct_light(hit: HitInfo, seed: ptr<function, u32>) -> vec3f {
+  let light = sample_area_light(hit.position, seed);
+  let shadow_origin = hit.position + 1e-2 * hit.normal;
+  if (is_occluded(shadow_origin, light.wi, light.dist)) { return vec3f(0.0); }
+  return hit.diffuse / PI * light.Li * max(dot(hit.normal, light.wi), 0.0);
+}
+
+fn glass_direction(ray: Ray, hit: HitInfo, seed: ptr<function, u32>) -> vec3f {
+  let cos_i = -dot(ray.direction, hit.normal);
+  let cos2_t = 1.0 - hit.ior * hit.ior * (1.0 - cos_i * cos_i);
+  if (cos2_t < 0.0) {
+    return reflect(ray.direction, hit.normal);
+  }
+  let R = fresnel_R(cos_i, sqrt(cos2_t), hit.ior);
+  if (rnd(seed) < R) { return reflect(ray.direction, hit.normal); }
+  return refract(ray.direction, hit.normal, hit.ior);
+}
+
+fn trace_ray(first_ray: Ray, seed: ptr<function, u32>) -> vec3f {
+  var ray = first_ray;
+  var result = vec3f(0.0);
+  var throughput = vec3f(1.0);
+  for (var depth = 0u; depth < MAX_DEPTH; depth = depth + 1u) {
+    let hit = intersect_scene(ray);
+    if (!hit.hit) {
+      result += throughput * U.background.xyz;
+      break;
+    }
+    if (any(hit.emission > vec3f(0.0))) {
+      result += throughput * hit.emission;
+      break;
+    }
+    if (hit.shader == SHADER_MIRROR) {
+      let refl = reflect(ray.direction, hit.normal);
+      ray = Ray(hit.position + 1e-2 * refl, refl, 1e-2, 1e9);
+    } else if (hit.shader == SHADER_GLASS) {
+      let dir = glass_direction(ray, hit, seed);
+      ray = Ray(hit.position + 1e-2 * dir, dir, 1e-2, 1e9);
+    } else {
+      result += throughput * direct_light(hit, seed);
+      break;
+    }
+  }
+  return result;
+}
+
+@fragment
+fn fs_main(in: VSOut) -> FSOut {
+  let pixel = vec2u(in.position.xy);
+  let width = U.frameInfo.x;
+  let height = U.frameInfo.y;
+  let frame = u32(U.frameInfo.z);
+  let progressive = U.frameInfo.w > 0.5;
+
+  var seed = tea(pixel.y * u32(width) + pixel.x, frame);
+  let base = vec2f(in.coords.x * U.params.x, in.coords.y) * 0.5;
+  var ipcoords = base;
+  if (progressive) {
+    ipcoords += vec2f((rnd(&seed) - 0.5) * U.params.x / width, (rnd(&seed) - 0.5) / height);
+  }
+
+  let sample_color = trace_ray(get_camera_ray(ipcoords), &seed);
+
+  let previous = textureLoad(previousFrame, pixel, 0).rgb;
+  var color = sample_color;
+  if (progressive && frame > 0u) {
+    color = (previous * f32(frame) + sample_color) / f32(frame + 1u);
+  }
+
+  var out : FSOut;
+  out.frame = vec4f(color, 1.0);
+  out.accum = vec4f(color, 1.0);
+  return out;
+}
+  </script>
+</body>
+</html>

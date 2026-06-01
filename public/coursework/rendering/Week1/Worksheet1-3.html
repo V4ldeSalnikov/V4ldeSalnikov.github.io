@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>W01P3 – Ray intersections</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script defer src="MV.js"></script>
+  <script defer src="Worksheet1-3.js"></script>
+  <style>
+    html, body { margin: 0; height: 100%; background: #222; }
+    canvas { display: block; margin: auto; }
+  </style>
+</head>
+<body>
+  <canvas id="my-canvas" width="600" height="600"></canvas>
+
+  <script id="raytracing-wgsl" type="wgsl">
+    struct VSOut {
+      @builtin(position) position : vec4f,
+      @location(0)       coords   : vec2f,
+    };
+
+    struct Uniforms {
+      eye          : vec4f,
+      right        : vec4f,
+      up           : vec4f,
+      forward      : vec4f,
+      params       : vec4f,
+      plane_point  : vec4f,
+      plane_normal : vec4f,
+      plane_color  : vec4f,
+      sphere       : vec4f,
+      sphere_color : vec4f,
+      tri_v0       : vec4f,
+      tri_v1       : vec4f,
+      tri_v2       : vec4f,
+      tri_color    : vec4f,
+      background   : vec4f,
+    };
+    @group(0) @binding(0) var<uniform> U : Uniforms;
+
+    struct Ray {
+      origin    : vec3f,
+      direction : vec3f,
+    };
+
+    struct HitInfo {
+      t     : f32,
+      color : vec3f,
+      hit   : bool,
+    };
+
+    @vertex
+    fn vs_main(@builtin(vertex_index) vid: u32) -> VSOut {
+      var positions = array<vec2f, 4>(
+        vec2f(-1.0, -1.0),
+        vec2f( 1.0, -1.0),
+        vec2f(-1.0,  1.0),
+        vec2f( 1.0,  1.0)
+      );
+      var out : VSOut;
+      out.position = vec4f(positions[vid], 0.0, 1.0);
+      out.coords   = positions[vid];
+      return out;
+    }
+
+    fn get_camera_ray(ipcoords: vec2f) -> Ray {
+      var ray : Ray;
+      ray.origin    = U.eye.xyz;
+      ray.direction = normalize(ipcoords.x * U.right.xyz
+                              + ipcoords.y * U.up.xyz
+                              + U.params.y * U.forward.xyz);
+      return ray;
+    }
+
+    fn intersect_plane(ray: Ray, point: vec3f, normal: vec3f) -> f32 {
+      let denom = dot(normal, ray.direction);
+      if (abs(denom) < 1e-8) {
+        return -1.0;
+      }
+      return dot(point - ray.origin, normal) / denom;
+    }
+
+    fn intersect_sphere(ray: Ray, center: vec3f, radius: f32) -> f32 {
+      let oc = ray.origin - center;
+      let b = dot(oc, ray.direction);
+      let c = dot(oc, oc) - radius * radius;
+      let disc = b * b - c;
+      if (disc < 0.0) {
+        return -1.0;
+      }
+      let sqrt_disc = sqrt(disc);
+      let t_near = -b - sqrt_disc;
+      if (t_near > 1e-4) {
+        return t_near;
+      }
+      return -b + sqrt_disc;
+    }
+
+    fn intersect_triangle(ray: Ray, v0: vec3f, v1: vec3f, v2: vec3f) -> f32 {
+      let edge1 = v1 - v0;
+      let edge2 = v2 - v0;
+      let pvec = cross(ray.direction, edge2);
+      let det = dot(edge1, pvec);
+      if (abs(det) < 1e-8) {
+        return -1.0;
+      }
+      let inv_det = 1.0 / det;
+      let tvec = ray.origin - v0;
+      let u = dot(tvec, pvec) * inv_det;
+      let qvec = cross(tvec, edge1);
+      let v = dot(ray.direction, qvec) * inv_det;
+      if (u < 0.0 || v < 0.0 || u + v > 1.0) {
+        return -1.0;
+      }
+      return dot(edge2, qvec) * inv_det;
+    }
+
+    @fragment
+    fn fs_main(in: VSOut) -> @location(0) vec4f {
+      let ipcoords = vec2f(in.coords.x * U.params.x, in.coords.y) * 0.5;
+      let ray = get_camera_ray(ipcoords);
+
+      var hit = HitInfo(1e9, U.background.xyz, false);
+
+      let t_plane = intersect_plane(ray, U.plane_point.xyz, U.plane_normal.xyz);
+      if (t_plane > 1e-4 && t_plane < hit.t) {
+        hit = HitInfo(t_plane, U.plane_color.xyz, true);
+      }
+
+      let t_sphere = intersect_sphere(ray, U.sphere.xyz, U.sphere.w);
+      if (t_sphere > 1e-4 && t_sphere < hit.t) {
+        hit = HitInfo(t_sphere, U.sphere_color.xyz, true);
+      }
+
+      let t_tri = intersect_triangle(ray, U.tri_v0.xyz, U.tri_v1.xyz, U.tri_v2.xyz);
+      if (t_tri > 1e-4 && t_tri < hit.t) {
+        hit = HitInfo(t_tri, U.tri_color.xyz, true);
+      }
+
+      return vec4f(hit.color, 1.0);
+    }
+  </script>
+</body>
+</html>
