@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Worksheet 7 — Part 4 (Bump Mapped Reflective Sphere)</title>
+  <script src="MV.js"></script>
+
+  <script id="wgsl" type="x-shader">
+    const PI = 3.141592653589793;
+
+    struct Uniforms {
+      mvp        : mat4x4f,
+      mtex       : mat4x4f,
+      eye        : vec4f,
+      reflective : f32,
+    };
+    @group(0) @binding(0) var<uniform> U : Uniforms;
+    @group(0) @binding(1) var samp : sampler;
+    @group(0) @binding(2) var cubeTex : texture_cube<f32>;
+    @group(0) @binding(3) var normalTex : texture_2d<f32>;
+
+    struct VSOut {
+      @builtin(position) clip : vec4f,
+      @location(0) texDir : vec3f,
+    };
+
+    @vertex
+    fn main_vs(@location(0) inPos : vec3f) -> VSOut {
+      var out : VSOut;
+      out.clip   = U.mvp  * vec4f(inPos, 1.0);
+      out.texDir = (U.mtex * vec4f(inPos, 1.0)).xyz;
+      return out;
+    }
+
+    fn rotate_to_normal(n : vec3f, v : vec3f) -> vec3f {
+      let sgn_nz = sign(n.z + 1.0e-16);
+      let a = -1.0 / (1.0 + abs(n.z));
+      let b = n.x * n.y * a;
+      return vec3f(1.0 + n.x * n.x * a, b, -sgn_nz * n.x) * v.x
+           + vec3f(sgn_nz * b, sgn_nz * (1.0 + n.y * n.y * a), -n.y) * v.y
+           + n * v.z;
+    }
+
+    @fragment
+    fn main_fs(@location(0) texDir : vec3f) -> @location(0) vec4f {
+      var dir = texDir;
+      if (U.reflective > 0.5) {
+        let n_w = normalize(texDir);
+
+        let u = 0.5 - atan2(n_w.z, n_w.x) / (2.0 * PI);
+        let v = acos(clamp(n_w.y, -1.0, 1.0)) / PI;
+        let c = textureSample(normalTex, samp, vec2f(u, v)).rgb;
+        let n_perp = 2.0 * c - 1.0;
+
+        let n_bump = normalize(rotate_to_normal(n_w, n_perp));
+        dir = reflect(texDir - U.eye.xyz, n_bump);
+      }
+      return vec4f(textureSample(cubeTex, samp, vec3f(dir.x, -dir.y, dir.z)).rgb, 1.0);
+    }
+</script>
+
+  <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+      background: radial-gradient(circle at 20% 20%, #0b1a32, #050910 45%);
+      color: #e2e8f0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    body { display: grid; place-items: center; }
+    main { display: flex; flex-direction: column; gap: 1rem; align-items: center; }
+    h1 { font-size: 1.35rem; font-weight: 600; letter-spacing: 0.02em; margin: 0.25rem 0 0; }
+    #my-canvas {
+      width: 860px;
+      height: 640px;
+      border: 1px solid #1e3a8a;
+      background: #0b1224;
+      box-shadow: 0 18px 46px rgba(2, 8, 20, 0.55);
+      cursor: grab;
+    }
+    #hint { max-width: 880px; color: #a5b4fc; font-size: 0.94rem; text-align: center; line-height: 1.55; }
+    .info-box {
+      max-width: 880px;
+      background: rgba(30, 58, 138, 0.2);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: 0.9rem;
+      color: #c7d2fe;
+      line-height: 1.5;
+    }
+    .info-box code { color: #93c5fd; }
+  </style>
+
+  <script src="Worksheet7-4.js" defer></script>
+</head>
+<body>
+  <main>
+    <h1>Worksheet 7 — Part 4 · Bump Mapped Reflective Sphere</h1>
+    <canvas id="my-canvas" width="1000" height="750">WebGPU not supported.</canvas>
+    <p id="hint">A normal map perturbs the mirror ball's normal, so the reflection looks scaly/bumpy. Drag to orbit.</p>
+    <div class="info-box">
+      <strong>Bump mapping:</strong> the normal map colour <code>c</code> is decoded to a tangent-space
+      normal <code>n&#8869; = 2c − 1</code>, rotated into world space with
+      <code>rotate_to_normal(n<sub>w</sub>, n&#8869;)</code>, and the perturbed normal replaces
+      <code>n<sub>w</sub></code> in <code>r<sub>w</sub> = reflect(p<sub>w</sub> − e, n<sub>bump</sub>)</code>.
+    </div>
+  </main>
+</body>
+</html>

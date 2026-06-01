@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Worksheet 2 — Part 3 (WebGPU)</title>
+  <script src="MV.js"></script>
+
+  <script id="wgsl" type="x-shader">
+  struct VSOut {
+    @builtin(position) position: vec4f,
+    @location(0)       color:    vec3f,
+  };
+
+  @vertex
+  fn main_vs(@location(0) inPos: vec2f,
+             @location(1) inColor: vec3f) -> VSOut {
+    var out: VSOut;
+    out.position = vec4f(inPos, 0.0, 1.0);
+    out.color    = inColor;
+    return out;
+  }
+
+  @fragment
+  fn main_fs(@location(0) inColor: vec3f) -> @location(0) vec4f {
+    return vec4f(inColor, 1.0);
+  }
+  </script>
+
+  <style>
+    :root { --on:#222; --off:#888; }
+    body { margin:0; font:14px/1.2 system-ui, sans-serif; background:#f2f2f2; }
+    #wrap { max-width: 900px; margin: 16px auto; }
+    #controls { display:flex; flex-wrap:wrap; gap:12px; align-items:center; margin-bottom:10px; }
+    select, button { padding:6px 10px; }
+    .mode { border:1px solid #aaa; border-radius:8px; }
+    .mode[aria-pressed="true"] { border-color: var(--on); color: var(--on); font-weight:600; }
+    .mode[aria-pressed="false"]{ color: var(--off); }
+    canvas { border:1px solid #888; width:512px; height:512px; background:white; display:block; }
+  </style>
+
+  <script defer src="Worksheet2-3.js"></script>
+</head>
+<body>
+  <div id="wrap">
+    <div id="controls">
+      <button id="mode-point" class="mode" aria-pressed="true">Points mode</button>
+      <button id="mode-tri"   class="mode" aria-pressed="false">Triangles mode</button>
+
+      <label>Clear color:
+        <select id="bg-color">
+          <option value="cornflower" selected>cornflower</option>
+          <option value="white">white</option><option value="black">black</option>
+          <option value="red">red</option><option value="green">green</option><option value="blue">blue</option>
+          <option value="yellow">yellow</option><option value="magenta">magenta</option><option value="cyan">cyan</option>
+          <option value="orange">orange</option><option value="purple">purple</option><option value="gray">gray</option>
+        </select>
+      </label>
+
+      <label>Point/vertex color:
+        <select id="pt-color">
+          <option value="black" selected>black</option>
+          <option value="red">red</option><option value="green">green</option><option value="blue">blue</option>
+          <option value="yellow">yellow</option><option value="magenta">magenta</option><option value="cyan">cyan</option>
+          <option value="white">white</option><option value="orange">orange</option><option value="purple">purple</option><option value="gray">gray</option>
+        </select>
+      </label>
+
+      <button id="clear-btn">Clear canvas</button>
+      <span style="opacity:.7">Click on canvas to add</span>
+    </div>
+
+    <canvas id="my-canvas" width="512" height="512">
+      Please use a browser that supports WebGPU.
+    </canvas>
+  </div>
+</body>
+</html>

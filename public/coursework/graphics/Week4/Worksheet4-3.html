@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Worksheet 4 — Part 3 (Gouraud-Lit Sphere)</title>
+  <script src="MV.js"></script>
+
+  <script id="wgsl" type="x-shader">
+    struct Uniforms {
+      mvp: mat4x4f,
+    };
+    @group(0) @binding(0) var<uniform> U : Uniforms;
+
+    struct VSOut {
+      @builtin(position) clip : vec4f,
+      @location(0) color : vec3f,
+    };
+
+    @vertex
+    fn main_vs(@location(0) inPos : vec3f) -> VSOut {
+      var out : VSOut;
+      let normal = normalize(inPos);
+      let w_i = vec3f(0.0, 0.0, 1.0);
+      let kd  = vec3f(0.7, 0.5, 0.8);
+      out.color = kd * max(dot(normal, w_i), 0.0);
+      out.clip = U.mvp * vec4f(inPos, 1.0);
+      return out;
+    }
+
+    @fragment
+    fn main_fs(@location(0) color : vec3f) -> @location(0) vec4f {
+      return vec4f(color, 1.0);
+    }
+</script>
+
+  <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+      background: #eff6ff;
+      color: #0f172a;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    body {
+      display: grid;
+      place-items: center;
+    }
+    main {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      align-items: center;
+    }
+    #my-canvas {
+      width: 800px;
+      height: 600px;
+      border: 1px solid #bfdbfe;
+      background: #ffffff;
+      box-shadow: 0 10px 30px rgba(30, 64, 175, 0.18);
+    }
+    #controls {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    #controls button {
+      padding: 0.35rem 0.9rem;
+      border: 1px solid #93c5fd;
+      background: #dbeafe;
+      color: #1d4ed8;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.95rem;
+    }
+    #controls button:disabled {
+      opacity: 0.5;
+      cursor: default;
+    }
+    #controls span {
+      font-weight: 600;
+      letter-spacing: 0.01em;
+    }
+  </style>
+
+  <script src="Worksheet4-3.js" defer></script>
+</head>
+<body>
+  <main>
+    <canvas id="my-canvas" width="1000" height="750">WebGPU not supported.</canvas>
+    <div id="controls">
+      <button id="subdiv-dec">Subdivide −</button>
+      <span id="subdiv-label">Subdivision Level: 0</span>
+      <button id="subdiv-inc">Subdivide +</button>
+    </div>
+  </main>
+</body>
+</html>

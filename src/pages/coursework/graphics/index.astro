@@ -1,0 +1,144 @@
+---
+import Base from '../../../layouts/Base.astro';
+
+const base = '/coursework/graphics';
+const href = (dir: string, file: string) => encodeURI(`${base}/${dir}/${file}`);
+
+type Ex = { label: string; file: string; kind?: 'doc' };
+type Week = { n: number; dir: string; title: string; exercises: Ex[] };
+
+const weeks: Week[] = [
+  { n: 1, dir: 'Week1', title: 'WebGPU basics', exercises: [
+    { label: '1 · Clear the canvas', file: 'Worksheet1-1.html' },
+    { label: '2 · Points', file: 'Worksheet1-2.html' },
+    { label: '3 · Interpolated-colour triangle', file: 'Worksheet1-3.html' },
+    { label: '4 · Rotating quad', file: 'Worksheet1-4.html' },
+    { label: '5 · Bouncing circle', file: 'Worksheet1-5.html' },
+  ]},
+  { n: 2, dir: 'Week2', title: 'Interactive 2D drawing', exercises: [
+    { label: '1 · Click to add points', file: 'Worksheet2-1.html' },
+    { label: '2 · Coloured points', file: 'Worksheet2-2.html' },
+    { label: '3 · Points & triangles', file: 'Worksheet2-3.html' },
+    { label: '4 · Points, triangles & circles', file: 'Worksheet2-4.html' },
+  ]},
+  { n: 3, dir: 'Week3', title: 'Transformations & projection', exercises: [
+    { label: '1 · Isometric wireframe cube', file: 'Worksheet3-1.html' },
+    { label: '2 · Three perspective views', file: 'Worksheet3-2.html' },
+    { label: '3 · Transformation matrices', file: 'Worksheet3-3.html', kind: 'doc' },
+  ]},
+  { n: 4, dir: 'Week4', title: 'Lighting & shading', exercises: [
+    { label: '1 · Subdivided sphere', file: 'Worksheet4-1.html' },
+    { label: '2 · Position-coloured sphere', file: 'Worksheet4-2.html' },
+    { label: '3 · Gouraud shading', file: 'Worksheet4-3.html' },
+    { label: '4 · Phong shading', file: 'Worksheet4-4.html' },
+    { label: '5 · Phong shading (per fragment)', file: 'Worksheet4-5.html' },
+    { label: '6 · Lighting & shading questions', file: 'Worksheet4-6.html', kind: 'doc' },
+  ]},
+  { n: 5, dir: 'Week5', title: 'Triangle meshes (OBJ)', exercises: [
+    { label: '3 · Teapot OBJ loading', file: 'Worksheet5-3.html' },
+    { label: '4 · Teapot — Phong shading', file: 'Worksheet5-4.html' },
+  ]},
+  { n: 6, dir: 'Week6', title: 'Texture mapping', exercises: [
+    { label: '1 · Checkerboard quad', file: 'Worksheet6-1.html' },
+    { label: '2 · Mipmap & filtering controls', file: 'Worksheet6-2.html' },
+    { label: '3 · Textured Earth sphere', file: 'Worksheet6-3.html' },
+  ]},
+  { n: 7, dir: 'Week7', title: 'Environment & bump mapping', exercises: [
+    { label: '1 · Cube-map sphere', file: 'Worksheet7-1.html' },
+    { label: '2 · Environment background', file: 'Worksheet7-2.html' },
+    { label: '3 · Reflective sphere', file: 'Worksheet7-3.html' },
+    { label: '4 · Bump-mapped reflective sphere', file: 'Worksheet7-4.html' },
+  ]},
+  { n: 8, dir: 'Week8', title: 'Projection shadows', exercises: [
+    { label: '1 · Scene (ground + quads)', file: 'Worksheet8-1.html' },
+    { label: '2 · Projection shadows', file: 'Worksheet8-2.html' },
+    { label: '3 · Shadow culling (depth test)', file: 'Worksheet8-3.html' },
+    { label: '4 · Semi-transparent shadows', file: 'Worksheet8-4.html' },
+  ]},
+  { n: 9, dir: 'Week9', title: 'Shadow mapping', exercises: [
+    { label: '1 · Jumping teapot scene', file: 'Worksheet9-1.html' },
+    { label: '2 · Projection shadows (reference)', file: 'Worksheet9-2.html' },
+    { label: '3 · Shadow mapping (Parts 3–4)', file: 'Worksheet9-3.html' },
+    { label: '5 · Projection vs shadow mapping', file: 'Worksheet9-5.html', kind: 'doc' },
+  ]},
+  { n: 10, dir: 'Week10', title: 'Virtual trackball', exercises: [
+    { label: '1 · Simple orbiting (Euler angles)', file: 'Worksheet10-1.html' },
+    { label: '2 · Quaternion trackball', file: 'Worksheet10-2.html' },
+    { label: '3 · Orbit, dolly, pan', file: 'Worksheet10-3.html' },
+    { label: '4 · Trackball with spinning', file: 'Worksheet10-4.html' },
+  ]},
+];
+---
+
+<Base title="Computer Graphics — Coursework">
+  <section class="max-w-3xl mx-auto px-6 py-12">
+    <p style="margin: 0 0 1.5rem;">
+      <a href="/coursework/" class="plain" style="color: var(--color-fg-dim); font-family: var(--font-sans); font-size: 0.85rem;">← Coursework</a>
+    </p>
+    <h1 style="font-family: var(--font-serif); font-size: 2rem; margin: 0 0 0.4rem;">Computer Graphics</h1>
+    <p style="color: var(--color-fg-dim); margin-bottom: 1rem;">
+      DTU 02561 · the real-time rasterization pipeline built from scratch in WebGPU. Each week's
+      exercises run live in the browser — pick one below.
+    </p>
+    <p class="hint">
+      Interactive exercises render with <strong>WebGPU</strong>; open them in Chrome or Edge (or Safari&nbsp;18+).
+      Several are interactive — click to draw (Week&nbsp;2), drag to orbit (Weeks&nbsp;6–7,&nbsp;10),
+      and use the on-screen buttons and sliders.
+    </p>
+
+    {weeks.map((w) => (
+      <section class="week">
+        <h2>Week {w.n} <span class="wt">— {w.title}</span></h2>
+        <ul>
+          {w.exercises.map((e) => (
+            <li>
+              <a href={href(w.dir, e.file)}>{e.label}</a>
+              {e.kind === 'doc' && <span class="badge">document</span>}
+            </li>
+          ))}
+        </ul>
+      </section>
+    ))}
+  </section>
+</Base>
+
+<style>
+  .hint {
+    color: var(--color-fg-muted);
+    font-family: var(--font-sans);
+    font-size: 0.82rem;
+    line-height: 1.5;
+    border: 1px solid var(--color-line);
+    border-radius: 6px;
+    padding: 0.7rem 0.9rem;
+    margin: 0 0 2.5rem;
+  }
+  .week { padding: 1.1rem 0; border-bottom: 1px solid var(--color-line); }
+  .week:last-child { border-bottom: 0; }
+  .week h2 {
+    font-family: var(--font-sans);
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin: 0 0 0.6rem;
+    color: var(--color-fg);
+  }
+  .week h2 .wt { color: var(--color-fg-dim); font-weight: 400; }
+  .week ul { list-style: none; margin: 0; padding: 0; }
+  .week li {
+    display: flex;
+    align-items: baseline;
+    gap: 0.6rem;
+    padding: 0.18rem 0;
+    font-family: var(--font-sans);
+    font-size: 0.92rem;
+  }
+  .week li a { border-bottom: 0; }
+  .week li a:hover { border-bottom: 1px solid var(--color-accent); }
+  .badge {
+    font-size: 0.68rem;
+    color: var(--color-fg-muted);
+    border: 1px solid var(--color-line);
+    border-radius: 4px;
+    padding: 0 0.35rem;
+  }
+</style>

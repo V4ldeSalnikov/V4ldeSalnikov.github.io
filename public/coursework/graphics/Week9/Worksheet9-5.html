@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Worksheet 9 — Part 5 (Projection shadows vs shadow mapping)</title>
+
+  <style>
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background: #20242b;
+      color: #f3f4f6;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    body {
+      display: grid;
+      place-items: start center;
+      padding: 2rem 1rem;
+      box-sizing: border-box;
+    }
+
+    main {
+      width: min(980px, 100%);
+    }
+
+    h1 {
+      margin: 0 0 1rem;
+      font-size: 1.35rem;
+      font-weight: 700;
+      text-align: center;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #f8fafc;
+      color: #111827;
+      border: 1px solid #94a3b8;
+    }
+
+    th, td {
+      vertical-align: top;
+      text-align: left;
+      padding: 0.85rem 1rem;
+      border: 1px solid #cbd5e1;
+    }
+
+    th {
+      background: #dbeafe;
+      font-weight: 700;
+    }
+
+    td:first-child {
+      width: 10rem;
+      font-weight: 700;
+      background: #eef2ff;
+    }
+
+    ul {
+      margin: 0;
+      padding-left: 1.2rem;
+    }
+
+    li + li {
+      margin-top: 0.4rem;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Worksheet 9 — Part 5 · Projection shadows vs shadow mapping</h1>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Technique</th>
+          <th>Advantages</th>
+          <th>Disadvantages</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Projection shadows</td>
+          <td>
+            <ul>
+              <li>Simple to understand: project the object geometry onto a plane.</li>
+              <li>Fast for one flat receiver such as a ground plane.</li>
+              <li>Produces sharp shadows without needing a shadow-map texture.</li>
+              <li>No shadow-map resolution problems.</li>
+            </ul>
+          </td>
+          <td>
+            <ul>
+              <li>Works mainly for simple receiving surfaces, especially planes.</li>
+              <li>Does not handle self-shadowing.</li>
+              <li>Hard to extend to complex scenes with many receivers.</li>
+              <li>The shadow is fake geometry, so it needs special depth/blending handling.</li>
+            </ul>
+          </td>
+        </tr>
+        <tr>
+          <td>Shadow mapping</td>
+          <td>
+            <ul>
+              <li>Works for general geometry, not only flat planes.</li>
+              <li>Supports self-shadowing.</li>
+              <li>One light-space depth map can shadow many visible surfaces.</li>
+              <li>Closer to the real question: can the light see this point?</li>
+            </ul>
+          </td>
+          <td>
+            <ul>
+              <li>Requires an extra render pass from the light's point of view.</li>
+              <li>Needs a texture, extra uniforms, and shadow lookup logic.</li>
+              <li>Can have aliasing if the shadow map resolution is too low.</li>
+              <li>Can suffer from shadow acne or peter-panning, requiring bias tuning.</li>
+            </ul>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </main>
+</body>
+</html>

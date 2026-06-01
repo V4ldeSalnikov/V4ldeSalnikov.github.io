@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Worksheet 6 — Part 3 (Earth Texturing)</title>
+  <script src="MV.js"></script>
+  <script src="genmipmap.js"></script>
+
+  <script id="wgsl" type="x-shader">
+    const PI = 3.141592653589793;
+
+    struct Uniforms {
+      mvp : mat4x4<f32>,
+    };
+    @group(0) @binding(0) var<uniform> U : Uniforms;
+    @group(0) @binding(1) var samp : sampler;
+    @group(0) @binding(2) var tex : texture_2d<f32>;
+
+    struct VSOut {
+      @builtin(position) clip : vec4f,
+      @location(0) normal : vec3f,
+    };
+
+    @vertex
+    fn main_vs(@location(0) inPos : vec3f) -> VSOut {
+      var out : VSOut;
+      out.clip = U.mvp * vec4f(inPos, 1.0);
+      out.normal = normalize(inPos);
+      return out;
+    }
+
+    @fragment
+    fn main_fs(@location(0) normal : vec3f) -> @location(0) vec4f {
+      let n = normalize(normal);
+      let u = 0.5 - atan2(n.z, n.x) / (2.0 * PI);
+      let v = acos(clamp(n.y, -1.0, 1.0)) / PI;
+      let kd = textureSample(tex, samp, vec2f(u, v)).rgb;
+
+      let lightDir = normalize(vec3f(0.35, 0.6, 0.7));
+      let La = 0.18;
+      let Le = 0.82;
+      let color = kd * (La + Le * max(dot(n, lightDir), 0.0));
+      return vec4f(color, 1.0);
+    }
+</script>
+
+  <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+      background: #000000;
+      color: #f8fafc;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    body {
+      display: grid;
+      place-items: center;
+    }
+    main {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      align-items: center;
+    }
+    h1 {
+      font-size: 1.3rem;
+      font-weight: 600;
+      letter-spacing: 0.015em;
+      margin: 0;
+    }
+    #my-canvas {
+      width: 800px;
+      height: 600px;
+      border: 1px solid #1f2937;
+      background: #000000;
+      box-shadow: 0 16px 38px rgba(8, 47, 73, 0.55);
+      cursor: grab;
+    }
+    #my-canvas.dragging {
+      cursor: grabbing;
+    }
+    #notes {
+      max-width: 780px;
+      font-size: 0.95rem;
+      color: #cbd5f5;
+      line-height: 1.55;
+      text-align: center;
+    }
+    #notes strong {
+      color: #f8fafc;
+    }
+  </style>
+
+  <script src="Worksheet6-3.js" defer></script>
+</head>
+<body>
+  <main>
+    <h1>Worksheet 6 — Part 3 · Textured Earth with Orbit Controls</h1>
+    <canvas id="my-canvas" width="1000" height="750">WebGPU not supported.</canvas>
+    <section id="notes">
+      <p>We sample the globe using trilinear filtering (linear minification and mipmap filtering plus linear magnification). The trilinear choice balances sharp coastlines when the planet fills the view while fading aliasing in the alpine regions when the camera spins away—mipmaps eliminate the highest-frequency details before they shimmer, and the linear blend between mip levels avoids noticeable popping.</p>
+    </section>
+  </main>
+</body>
+</html>

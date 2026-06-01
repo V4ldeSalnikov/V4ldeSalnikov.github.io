@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Worksheet 3 — Part 2 (Three Perspective Views)</title>
+  <script src="MV.js"></script>
+
+  <script id="wgsl" type="x-shader">
+    struct Uniforms {
+      mvp: mat4x4f,
+    };
+    @group(0) @binding(0) var<uniform> U : Uniforms;
+
+    @vertex
+    fn main_vs(@location(0) inPos : vec3f) -> @builtin(position) vec4f {
+      return U.mvp * vec4f(inPos, 1.0);
+    }
+
+    @fragment
+    fn main_fs() -> @location(0) vec4f {
+      return vec4f(0.0, 0.0, 0.0, 1.0);
+    }
+</script>
+
+  <style>
+    html, body { height: 100%; margin: 0; background: #f2f4f8; }
+    body { display: grid; place-items: center; }
+    #my-canvas { width: 800px; height: 600px; border: 1px solid #cbd5e1; background:#ffffff; }
+  </style>
+
+  <script src="Worksheet3-2.js" defer></script>
+</head>
+<body>
+  <canvas id="my-canvas" width="1000" height="750">WebGPU not supported.</canvas>
+</body>
+</html>

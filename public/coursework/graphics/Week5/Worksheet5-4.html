@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Worksheet 5 — Part 4 (Teapot with Phong Shading)</title>
+  <script src="MV.js"></script>
+  <script src="OBJParser.js"></script>
+
+  <script id="wgsl" type="x-shader">
+    struct Uniforms {
+      mvp: mat4x4f,
+      model: mat4x4f,
+      eye: vec4f,
+      lightDir: vec4f,
+      material: vec4f,
+      lighting: vec4f,
+    };
+    @group(0) @binding(0) var<uniform> U : Uniforms;
+
+    struct VSOut {
+      @builtin(position) clip : vec4f,
+      @location(0) worldPos : vec3f,
+      @location(1) worldNormal : vec3f,
+      @location(2) color : vec3f,
+    };
+
+    @vertex
+    fn main_vs(@location(0) inPos : vec3f, @location(1) inNormal : vec3f, @location(2) inColor : vec3f) -> VSOut {
+      var out : VSOut;
+      out.worldPos    = (U.model * vec4f(inPos, 1.0)).xyz;
+      out.worldNormal = (U.model * vec4f(inNormal, 0.0)).xyz;
+      out.color       = inColor;
+      out.clip = U.mvp * vec4f(inPos, 1.0);
+      return out;
+    }
+
+    @fragment
+    fn main_fs(@location(0) worldPos : vec3f,
+               @location(1) interpNormal : vec3f,
+               @location(2) baseColor : vec3f) -> @location(0) vec4f {
+      let n   = normalize(interpNormal);
+      let w_i = normalize(U.lightDir.xyz);
+      let w_o = normalize(U.eye.xyz - worldPos);
+
+      let kd = U.material.x;
+      let ks = U.material.y;
+      let s  = U.material.z;
+      let Le = U.lighting.x;
+      let La = U.lighting.y;
+
+      let cos_t = max(dot(n, w_i), 0.0);
+      let ambient = baseColor * kd * La;
+      let diffuse = baseColor * kd * Le * cos_t;
+      var specular = vec3f(0.0);
+      if (cos_t > 0.0) {
+        let w_r = 2.0 * dot(w_i, n) * n - w_i;
+        specular = vec3f(1.0) * ks * Le * pow(max(dot(w_r, w_o), 0.0), s);
+      }
+
+      return vec4f(ambient + diffuse + specular, 1.0);
+    }
+</script>
+
+  <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+      background: #ede9fe;
+      color: #1f2937;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    body {
+      display: grid;
+      place-items: center;
+      padding: 1rem;
+      box-sizing: border-box;
+    }
+    main {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      align-items: center;
+    }
+    #my-canvas {
+      width: 800px;
+      height: 600px;
+      border: 1px solid #c4b5fd;
+      background: #ffffff;
+      box-shadow: 0 12px 32px rgba(79, 70, 229, 0.16);
+    }
+    #status {
+      font-weight: 600;
+      letter-spacing: 0.01em;
+      padding: 0.5rem 1rem;
+      background: #ddd6fe;
+      border-radius: 6px;
+      color: #5b21b6;
+    }
+    #sliders {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 0.75rem;
+      width: min(800px, 90vw);
+    }
+    .slider {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      background: #ffffff;
+      padding: 0.5rem 0.75rem;
+      border-radius: 8px;
+      border: 1px solid #d8b4fe;
+      box-shadow: 0 6px 18px rgba(79, 70, 229, 0.08);
+    }
+    .slider label {
+      font-size: 0.9rem;
+      font-weight: 600;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .slider input[type="range"] {
+      width: 100%;
+    }
+    .value {
+      font-variant-numeric: tabular-nums;
+    }
+    #explanation {
+      max-width: 800px;
+      background: #ffffff;
+      padding: 1rem 1.5rem;
+      border-radius: 8px;
+      border: 1px solid #d8b4fe;
+      box-shadow: 0 6px 18px rgba(79, 70, 229, 0.08);
+      line-height: 1.6;
+    }
+    #explanation h3 {
+      margin-top: 0;
+      color: #5b21b6;
+    }
+    #explanation p {
+      margin: 0.5rem 0;
+    }
+    #explanation strong {
+      color: #7c3aed;
+    }
+  </style>
+
+  <script src="Worksheet5-4.js" defer></script>
+</head>
+<body>
+  <main>
+    <canvas id="my-canvas" width="1000" height="750">WebGPU not supported.</canvas>
+    <div id="status">Loading teapot...</div>
+    <section id="sliders">
+      <div class="slider">
+        <label>k<sub>d</sub> (diffuse): <span class="value" id="kd-value">0.80</span></label>
+        <input id="kd-slider" type="range" min="0" max="1" step="0.01" value="0.8" />
+      </div>
+      <div class="slider">
+        <label>k<sub>s</sub> (specular): <span class="value" id="ks-value">0.40</span></label>
+        <input id="ks-slider" type="range" min="0" max="1" step="0.01" value="0.4" />
+      </div>
+      <div class="slider">
+        <label>s (shininess): <span class="value" id="s-value">32</span></label>
+        <input id="s-slider" type="range" min="1" max="128" step="1" value="32" />
+      </div>
+      <div class="slider">
+        <label>L<sub>e</sub> (light): <span class="value" id="le-value">1.00</span></label>
+        <input id="le-slider" type="range" min="0" max="2" step="0.01" value="1.0" />
+      </div>
+      <div class="slider">
+        <label>L<sub>a</sub> (ambient): <span class="value" id="la-value">0.20</span></label>
+        <input id="la-slider" type="range" min="0" max="1" step="0.01" value="0.2" />
+      </div>
+    </section>
+    
+    <div id="explanation">
+      <h3>Surface Normals and Phong Shading Explanation</h3>
+      <p><strong>How Surface Normals are Obtained:</strong></p>
+      <p>The surface normals are loaded from the OBJ file. The OBJ file contains vertex normals (vn lines) 
+      that are specified per vertex. These normals are passed through the vertex shader and interpolated 
+      across each triangle face during rasterization.</p>
+      
+      <p><strong>How Normals are Used:</strong></p>
+      <p>In the <strong>vertex shader</strong>, normals are transformed to world space using the model matrix 
+      (without translation). In the <strong>fragment shader</strong>, the interpolated normals are normalized 
+      and used to calculate lighting using the Phong illumination model:</p>
+      <ul style="margin: 0.5rem 0; padding-left: 1.5rem;">
+        <li><strong>Ambient:</strong> baseColor × k<sub>d</sub> × L<sub>a</sub> &nbsp;(with k<sub>a</sub> = k<sub>d</sub>)</li>
+        <li><strong>Diffuse:</strong> baseColor × k<sub>d</sub> × max(N·ω<sub>i</sub>, 0) × L<sub>e</sub></li>
+        <li><strong>Specular (Phong):</strong> (1,1,1) × k<sub>s</sub> × max(ω<sub>r</sub>·ω<sub>o</sub>, 0)<sup>s</sup> × L<sub>e</sub>,
+            with reflection ω<sub>r</sub> = 2(ω<sub>i</sub>·N)N − ω<sub>i</sub> and ω<sub>o</sub> toward the viewer</li>
+      </ul>
+      
+      <p><strong>Surface Smoothness and Triangle Meshes:</strong></p>
+      <p>The smoothness of the rendered surface depends on how normals are defined. When normals are 
+      <strong>interpolated per-vertex</strong> (as in this teapot), the GPU interpolates them across faces, 
+      creating smooth shading even though the mesh is made of flat triangles. This is called <strong>Phong 
+      shading</strong> or <strong>smooth shading</strong>.</p>
+      
+      <p>If we used <strong>face normals</strong> (one normal per triangle) instead, each triangle would 
+      appear flat with visible edges, creating a faceted look. The vertex normal approach gives the illusion 
+      of a curved surface from a polygonal mesh.</p>
+    </div>
+  </main>
+</body>
+</html>
+

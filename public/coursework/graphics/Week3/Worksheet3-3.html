@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Worksheet 3 — Part 3 (Transformations: theory)</title>
+
+  <script>
+    window.MathJax = {
+      tex: { inlineMath: [['\\(', '\\)']], displayMath: [['$$', '$$']] },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" id="MathJax-script" async></script>
+
+  <style>
+    html { color-scheme: light; }
+    body {
+      max-width: 820px; margin: 2rem auto; padding: 0 1.2rem;
+      font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      color: #1a2230; background: #fbfcfe;
+    }
+    h1 { font-size: 1.6rem; }
+    h2 { font-size: 1.25rem; margin-top: 2rem; border-bottom: 1px solid #dfe4ea; padding-bottom: .3rem; }
+    h3 { font-size: 1.05rem; margin-top: 1.4rem; }
+    p, li { color: #28313f; }
+    code { background: #eef1f6; padding: .1em .35em; border-radius: 4px; font-size: .92em; }
+    .note { background: #eef4ff; border-left: 4px solid #4f7cff; padding: .6rem .9rem; border-radius: 4px; }
+    .grid { overflow-x: auto; }
+    footer { margin-top: 2.5rem; color: #6b7585; font-size: .85rem; }
+  </style>
+</head>
+<body>
+  <h1>Worksheet 3, Part 3 — Affine and viewing transformations</h1>
+  <p>
+    This page lists, with general expressions, the transformation matrices used in
+    <strong>Part 1</strong> (isometric orthographic view) and <strong>Part 2</strong>
+    (three classical perspective views), and shows how they are concatenated into the
+    composite matrix applied to every vertex in the vertex shader.
+  </p>
+
+  <div class="note">
+    WebGPU uses depth in <span>\([0,1]\)</span> instead of OpenGL's <span>\([-1,1]\)</span>.
+    We therefore finish every pipeline with the scale–translate matrix
+    <span>\(M_{st}\)</span>, so the full clip transform is
+    <span>\(\;x_{\text{clip,wgpu}} = M_{st}\,P\,V\,M\,x_{\text{model}}\)</span>.
+  </div>
+
+  <h2>1. The building-block matrices</h2>
+
+  <h3>Affine model transformations</h3>
+  <div class="grid">
+  $$
+  T(t_x,t_y,t_z)=\begin{bmatrix}1&0&0&t_x\\0&1&0&t_y\\0&0&1&t_z\\0&0&0&1\end{bmatrix},\qquad
+  S(s_x,s_y,s_z)=\begin{bmatrix}s_x&0&0&0\\0&s_y&0&0\\0&0&s_z&0\\0&0&0&1\end{bmatrix}
+  $$
+  $$
+  R_y(\theta)=\begin{bmatrix}\cos\theta&0&\sin\theta&0\\0&1&0&0\\-\sin\theta&0&\cos\theta&0\\0&0&0&1\end{bmatrix},\qquad
+  R_x(\theta)=\begin{bmatrix}1&0&0&0\\0&\cos\theta&-\sin\theta&0\\0&\sin\theta&\cos\theta&0\\0&0&0&1\end{bmatrix}
+  $$
+  </div>
+
+  <h3>View matrix (the <code>lookAt</code> function)</h3>
+  <p>
+    Given eye point <span>\(e\)</span>, look-at point <span>\(a\)</span>, and up vector
+    <span>\(u\)</span>, build the orthonormal eye basis
+  </p>
+  $$
+  \vec b_3=\frac{e-a}{\lVert e-a\rVert},\qquad
+  \vec b_1=\frac{u\times\vec b_3}{\lVert u\times\vec b_3\rVert},\qquad
+  \vec b_2=\vec b_3\times\vec b_1 ,
+  $$
+  <p>so the view matrix is the change of coordinates <span>\(V=RT\)</span>:</p>
+  $$
+  V=\operatorname{lookAt}(e,a,u)=
+  \begin{bmatrix}
+  \vec b_1^{\,T} & -\,e\cdot\vec b_1\\
+  \vec b_2^{\,T} & -\,e\cdot\vec b_2\\
+  \vec b_3^{\,T} & -\,e\cdot\vec b_3\\
+  \mathbf 0 & 1
+  \end{bmatrix}.
+  $$
+
+  <h3>Projection matrices</h3>
+  $$
+  P_{\text{ortho}}=\operatorname{ortho}(l,r,b,t,n,f)=
+  \begin{bmatrix}
+  \tfrac{2}{r-l}&0&0&-\tfrac{r+l}{r-l}\\
+  0&\tfrac{2}{t-b}&0&-\tfrac{t+b}{t-b}\\
+  0&0&-\tfrac{2}{f-n}&-\tfrac{f+n}{f-n}\\
+  0&0&0&1
+  \end{bmatrix}
+  $$
+  $$
+  P_{\text{persp}}=\operatorname{perspective}(\alpha,A,n,f)=
+  \begin{bmatrix}
+  \tfrac{1}{A}\cot\tfrac{\alpha}{2}&0&0&0\\
+  0&\cot\tfrac{\alpha}{2}&0&0\\
+  0&0&\tfrac{n+f}{n-f}&\tfrac{2nf}{n-f}\\
+  0&0&-1&0
+  \end{bmatrix}
+  $$
+  <p>
+    with vertical field of view <span>\(\alpha\)</span> and aspect ratio
+    <span>\(A=w/h\)</span>.
+  </p>
+
+  <h3>WebGPU depth remap</h3>
+  $$
+  M_{st}=\begin{bmatrix}1&0&0&0\\0&1&0&0\\0&0&\tfrac12&\tfrac12\\0&0&0&1\end{bmatrix}
+  $$
+
+  <h2>2. Part 1 — isometric wireframe cube</h2>
+  <p>
+    The cube already sits in world space with its diagonal from
+    <span>\((0,0,0)\)</span> to <span>\((1,1,1)\)</span>, so the model matrix is the
+    identity, <span>\(M=I\)</span>. The isometric look comes entirely from the
+    <em>camera</em>: an orthographic projection viewed along the cube's main diagonal,
+  </p>
+  $$
+  V=\operatorname{lookAt}\big(e=(2,2,2),\;a=(\tfrac12,\tfrac12,\tfrac12),\;u=(0,1,0)\big),\qquad
+  P=\operatorname{ortho}(-s,s,-s,s,0.1,10),\;\; s=1.2 .
+  $$
+  <p>Composite matrix used in the vertex shader:</p>
+  $$
+  \boxed{\,x_{\text{clip,wgpu}} = M_{st}\,P_{\text{ortho}}\,V\,I\;x_{\text{model}}\,}
+  $$
+
+  <h2>3. Part 2 — three classical perspective views</h2>
+  <p>
+    All three cubes share one pinhole camera (vertical field of view
+    <span>\(\alpha=45^\circ\)</span>) and one view matrix:
+  </p>
+  $$
+  P=\operatorname{perspective}(45^\circ,\,A,\,0.1,\,100),\qquad
+  V=\operatorname{lookAt}\big(e=(0,0,4.5),\;a=(0,0,0),\;u=(0,1,0)\big).
+  $$
+  <p>
+    Each cube is first centred on the origin and shrunk to fit, using the shared
+    placement <span>\(\;P_{\text{lace}} = S(0.9,0.9,0.9)\,T(-\tfrac12,-\tfrac12,-\tfrac12)\)</span>.
+    The view type is decided by the model matrix's rotation:
+  </p>
+
+  <h3>One-point (front) perspective</h3>
+  <p>No rotation — the faces stay parallel to the image plane, so only the depth
+     direction has a vanishing point.</p>
+  $$
+  M_1 = T(-1.5,0,0)\,S(0.9,0.9,0.9)\,T(-\tfrac12,-\tfrac12,-\tfrac12)
+  $$
+
+  <h3>Two-point (X) perspective</h3>
+  <p>Rotate about <span>\(y\)</span> only — the vertical edges stay parallel, while the
+     two horizontal edge directions each get a vanishing point.</p>
+  $$
+  M_2 = R_y(30^\circ)\,S(0.9,0.9,0.9)\,T(-\tfrac12,-\tfrac12,-\tfrac12)
+  $$
+
+  <h3>Three-point perspective</h3>
+  <p>Rotate about <span>\(y\)</span> and <span>\(x\)</span> — no edge stays parallel to
+     the image plane, giving three vanishing points.</p>
+  $$
+  M_3 = T(1.5,0,0)\,R_x(-20^\circ)\,R_y(-30^\circ)\,S(0.9,0.9,0.9)\,T(-\tfrac12,-\tfrac12,-\tfrac12)
+  $$
+
+  <p>Composite matrix used in the vertex shader for cube <span>\(i\)</span>:</p>
+  $$
+  \boxed{\,x_{\text{clip,wgpu}} = M_{st}\,P_{\text{persp}}\,V\,M_i\;x_{\text{model}},\qquad i=1,2,3\,}
+  $$
+
+  <div class="note" style="margin-top:1.6rem">
+    Matrix multiplication is not commutative, so order matters: within each
+    <span>\(M_i\)</span> the cube is centred (rightmost), then scaled, then rotated,
+    then translated into place; the camera (<span>\(V\)</span>), projection
+    (<span>\(P\)</span>) and depth remap (<span>\(M_{st}\)</span>) are applied last,
+    left to right.
+  </div>
+
+</body>
+</html>
