@@ -13,6 +13,9 @@ const projects = (await getCollection('projects', ({ data }) => !data.draft))
     <p style="color: var(--color-fg-dim); margin-bottom: 2.5rem;">
       University coursework, graphics experiments, side things.
     </p>
+    <p style="margin-bottom: 2rem;">
+      <a href="/ocr-eval/">ScandiOCR Eval — Scandinavian OCR leaderboard →</a>
+    </p>
     {projects.length === 0 ? (
       <p style="color: var(--color-fg-dim); font-style: italic;">Nothing here yet.</p>
     ) : (
