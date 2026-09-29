@@ -869,3 +869,10 @@ strong {
     font-size:14px
   }
 }
+.model-cell-content { display:flex; align-items:center; gap:12px; }
+.model-cell-content>div { min-width:0; }
+.compare-checkbox { width:15px; height:15px; margin:0; flex:none; accent-color:var(--red); cursor:pointer; }
+.compare-checkbox:disabled { opacity:.3; cursor:default; }
+.compare-tray { position:fixed; z-index:5; bottom:20px; left:50%; transform:translateX(-50%); display:flex; align-items:center; gap:22px; padding:13px 20px; border:1px solid #dfc5ca; border-radius:6px; background:#fff; box-shadow:0 4px 24px #30202915; font-size:12px; max-width:calc(100% - 32px); white-space:nowrap; }
+.compare-tray a { font-weight:600; }.compare-tray>span { color:var(--muted); }
+@media(max-width:680px) { .model-cell-content { gap:7px; }.compare-checkbox { width:13px; height:13px; }.compare-tray { gap:14px; padding:11px 13px; font-size:11px; }.header-inner nav { gap:18px; } }

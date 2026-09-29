@@ -38,6 +38,7 @@ import snapshot from '../../../public/ocr-eval/results.json';
       </div>
       <p id="table-status" class="message" role="status" aria-live="polite">Loading model scores…</p>
       <div class="table-footer"><span id="visible-models" aria-live="polite"></span><span>Error rates in % · lower is better</span></div>
+      <div class="compare-tray" id="compare-tray" hidden><span id="compare-selection-count" aria-live="polite"></span><button type="button" id="clear-comparison" class="text-button">Clear</button><a id="compare-selected" href="/ocr-eval/compare/">Compare models →</a></div>
     </section>
   </div>
   <noscript><p class="message">Enable JavaScript to filter scores, or <a href="/ocr-eval/results.json">download the results</a>. The <a href="/ocr-eval/datasets/">datasets</a> and <a href="/ocr-eval/methodology/">methodology</a> pages work without JavaScript.</p></noscript>

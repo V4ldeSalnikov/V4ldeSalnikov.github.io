@@ -1,5 +1,6 @@
 import { rankModels, type Metric, type Snapshot, type Row } from '../lib/ocr-results';
 import { datasetDescriptions } from '../data/ocr-datasets';
+import { MAX_MODELS, validModels } from '../lib/ocr-compare';
 
 const element = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const documentType = element<HTMLSelectElement>('document-type');
@@ -13,6 +14,7 @@ let task = 'line-recognition';
 let language = 'all';
 let metric: Metric = 'cer';
 let data: Snapshot;
+let selectedModels = new Set<string>();
 const numbers = new Intl.NumberFormat('en-GB');
 const percent = (value: number) => `${(value * 100).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
 const text = (id: string, value: string) => { element(id).textContent = value; };
@@ -40,12 +42,23 @@ function renderRow(row: Row) {
   const tr = node('tr', '', row.rank === 1 ? 'first-place' : '');
   tr.append(node('td', String(row.rank), 'rank-cell'));
   const modelCell = node('td');
+  const modelContent = node('div', '', 'model-cell-content');
+  const selectModel = node('input'); selectModel.type = 'checkbox'; selectModel.value = row.model.id;
+  selectModel.className = 'compare-checkbox'; selectModel.checked = selectedModels.has(row.model.id);
+  selectModel.setAttribute('aria-label', `Compare ${row.model.name}`);
+  selectModel.addEventListener('change', () => {
+    if (selectModel.checked && selectedModels.size < MAX_MODELS) selectedModels.add(row.model.id);
+    else selectedModels.delete(row.model.id);
+    updateComparison(); saveSelection();
+  });
+  const modelDetails = node('div');
   const [publisher, ...name] = row.model.name.split('/');
   const modelLink = node('a', name.length ? name.join('/') : publisher, 'model-name');
   modelLink.href = row.model.reference;
   modelLink.title = row.model.id;
-  modelCell.append(modelLink);
-  if (name.length) modelCell.append(node('span', publisher, 'model-publisher'));
+  modelDetails.append(modelLink);
+  if (name.length) modelDetails.append(node('span', publisher, 'model-publisher'));
+  modelContent.append(selectModel, modelDetails); modelCell.append(modelContent);
   tr.append(modelCell);
   for (const key of ['cer', 'wer'] as Metric[]) tr.append(node('td', percent(row.metrics[key]), 'number-cell'));
   return tr;
@@ -53,6 +66,7 @@ function renderRow(row: Row) {
 
 function saveSelection() {
   const params = new URLSearchParams();
+  selectedModels.forEach(id => params.append('model', id));
   if (task !== 'line-recognition') params.set('task', task);
   if (language !== 'all') params.set('language', language);
   if (documentType.value !== 'all') params.set('type', documentType.value);
@@ -63,6 +77,21 @@ function saveSelection() {
   history.replaceState(null, '', `${location.pathname}${query ? `?${query}` : ''}${location.hash}`);
 }
 
+function updateComparison() {
+  document.querySelectorAll<HTMLInputElement>('.compare-checkbox').forEach(input => {
+    input.checked = selectedModels.has(input.value);
+    input.disabled = !input.checked && selectedModels.size >= MAX_MODELS;
+  });
+  element('compare-tray').hidden = !selectedModels.size;
+  text('compare-selection-count', `${selectedModels.size} / ${MAX_MODELS} models selected`);
+  const params = new URLSearchParams({ task });
+  selectedModels.forEach(id => params.append('model', id));
+  if (language !== 'all') params.set('language', language);
+  if (documentType.value !== 'all') params.set('type', documentType.value);
+  if (dataset.value !== 'all') params.set('dataset', dataset.value);
+  element<HTMLAnchorElement>('compare-selected').href = `/ocr-eval/compare/?${params}`;
+}
+
 function render() {
   const selected = matchingDatasets().filter(item => dataset.value === 'all' || item.id === dataset.value);
   const samples = data.sample_sets.filter(sample => sample.task === task && selected.some(item => item.id === sample.dataset_id));
@@ -70,6 +99,7 @@ function render() {
   const query = search.value.trim().toLowerCase();
   const visible = rows.filter(row => `${row.model.name} ${row.model.id} ${row.model.family}`.toLowerCase().includes(query));
   body.replaceChildren(...visible.map(renderRow));
+  updateComparison();
   const count = samples.reduce((sum, sample) => sum + sample.selected_samples, 0);
   const label = dataset.value === 'all' ? `${samples.length} datasets · equal-weight average` : datasetDescriptions[dataset.value]?.name ?? selected[0]?.label ?? '';
   text('selection-description', `${label} · ${numbers.format(count)} ${task === 'line-recognition' ? 'lines' : 'pages'}`);
@@ -92,6 +122,7 @@ function render() {
 
 function restoreSelection() {
   const params = new URLSearchParams(location.search);
+  selectedModels = new Set(validModels(params.getAll('model'), data.models.map(model => model.id)));
   task = params.get('task') === 'page-transcription' ? 'page-transcription' : 'line-recognition';
   language = ['da', 'no', 'sv'].includes(params.get('language') ?? '') ? params.get('language')! : 'all';
   documentType.value = ['printed', 'handwritten'].includes(params.get('type') ?? '') ? params.get('type')! : 'all';
@@ -112,6 +143,7 @@ async function start() {
   documentType.addEventListener('change', () => { updateDatasetOptions(); render(); });
   dataset.addEventListener('change', render);
   search.addEventListener('input', render);
+  element('clear-comparison').addEventListener('click', () => { selectedModels.clear(); updateComparison(); saveSelection(); });
   element('reset-filters').addEventListener('click', () => { language = 'all'; documentType.value = 'all'; search.value = ''; metric = 'cer'; updateDatasetOptions('all'); render(); });
   window.addEventListener('popstate', restoreSelection);
 }

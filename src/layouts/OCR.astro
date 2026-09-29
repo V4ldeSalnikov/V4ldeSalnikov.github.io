@@ -1,8 +1,8 @@
 ---
 import '../styles/ocr-leaderboard.css';
-interface Props { title: string; description: string; active: 'leaderboard' | 'datasets' | 'methodology' }
+interface Props { title: string; description: string; active: 'leaderboard' | 'compare' | 'datasets' | 'methodology' }
 const { title, description, active } = Astro.props;
-const links = [['leaderboard', 'Leaderboard', '/ocr-eval/'], ['datasets', 'Datasets', '/ocr-eval/datasets/'], ['methodology', 'Methodology', '/ocr-eval/methodology/']];
+const links = [['leaderboard', 'Leaderboard', '/ocr-eval/'], ['compare', 'Compare', '/ocr-eval/compare/'], ['datasets', 'Datasets', '/ocr-eval/datasets/'], ['methodology', 'Methodology', '/ocr-eval/methodology/']];
 ---
 <!doctype html>
 <html lang="en">

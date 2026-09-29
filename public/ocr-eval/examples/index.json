@@ -1,0 +1,221 @@
+{
+  "schema_version": 1,
+  "selection": "First three cases by SHA256('scandiocr-examples-v1:' + case name), independent of model scores.",
+  "groups": [
+    {
+      "sample_set_id": "line-recognition/norhand",
+      "dataset_id": "norhand",
+      "task": "line-recognition",
+      "examples": [
+        {
+          "id": "0d505d327814002b79bb",
+          "case_id": "norhand-test-1128"
+        },
+        {
+          "id": "33a03c0b76af1f6bda8b",
+          "case_id": "norhand-test-953"
+        },
+        {
+          "id": "254671254342ccd6fd43",
+          "case_id": "norhand-test-1106"
+        }
+      ]
+    },
+    {
+      "sample_set_id": "line-recognition/danish-typewritten",
+      "dataset_id": "danish-typewritten",
+      "task": "line-recognition",
+      "examples": [
+        {
+          "id": "6683cc17c925a783b80f",
+          "case_id": "danish-typewritten-EHRI-DR-19410127-DK_02-0014"
+        },
+        {
+          "id": "3c5b8e93489e940b7f5b",
+          "case_id": "danish-typewritten-EHRI-DR-19431002-DK_03-0017"
+        },
+        {
+          "id": "65a79ea8570820341d51",
+          "case_id": "danish-typewritten-EHRI-DR-19420910-DK_01-0018"
+        }
+      ]
+    },
+    {
+      "sample_set_id": "line-recognition/modern-danish",
+      "dataset_id": "modern-danish",
+      "task": "line-recognition",
+      "examples": [
+        {
+          "id": "07f5fbe242f2e8b5dbb3",
+          "case_id": "modern-danish-724822-151-3"
+        },
+        {
+          "id": "d6c7c1acee1ff9d3bb0d",
+          "case_id": "modern-danish-724822-218-4"
+        },
+        {
+          "id": "a04e0e9f54e8ac6eb1b9",
+          "case_id": "modern-danish-724822-60-0"
+        }
+      ]
+    },
+    {
+      "sample_set_id": "line-recognition/riksarkivet-ood",
+      "dataset_id": "riksarkivet-ood",
+      "task": "line-recognition",
+      "examples": [
+        {
+          "id": "f5d86abcd6d44e84d0fe",
+          "case_id": "riksarkivet-ood-test-5140"
+        },
+        {
+          "id": "5bdecd21242a4ba83790",
+          "case_id": "riksarkivet-ood-test-762"
+        },
+        {
+          "id": "93cb3f6cff25238e87da",
+          "case_id": "riksarkivet-ood-test-1048"
+        }
+      ]
+    },
+    {
+      "sample_set_id": "line-recognition/swedish-fraktur",
+      "dataset_id": "swedish-fraktur",
+      "task": "line-recognition",
+      "examples": [
+        {
+          "id": "6ac7a669aae6a06e16cc",
+          "case_id": "swedish-fraktur-train-9376"
+        },
+        {
+          "id": "bc7022cb375f95e8f044",
+          "case_id": "swedish-fraktur-train-15460"
+        },
+        {
+          "id": "162b0fae96a86eab2167",
+          "case_id": "swedish-fraktur-train-15462"
+        }
+      ]
+    },
+    {
+      "sample_set_id": "line-recognition/historical-danish",
+      "dataset_id": "historical-danish",
+      "task": "line-recognition",
+      "examples": [
+        {
+          "id": "c8c61c02408841b061ca",
+          "case_id": "dkhist-7765132-8317-27"
+        },
+        {
+          "id": "c25f07e84a4863e103da",
+          "case_id": "dkhist-23739-85-38"
+        },
+        {
+          "id": "41f804ebe7b5925d3bbd",
+          "case_id": "dkhist-68131-1285-25"
+        }
+      ]
+    },
+    {
+      "sample_set_id": "page-transcription/modern-danish",
+      "dataset_id": "modern-danish",
+      "task": "page-transcription",
+      "examples": [
+        {
+          "id": "2ad734066c745e636638",
+          "case_id": "modern-danish-724822-74"
+        },
+        {
+          "id": "fa59979fd6c59cbfc3cd",
+          "case_id": "modern-danish-724822-96"
+        },
+        {
+          "id": "3d681e2b2853c873063b",
+          "case_id": "modern-danish-724822-221"
+        }
+      ]
+    },
+    {
+      "sample_set_id": "page-transcription/historical-danish",
+      "dataset_id": "historical-danish",
+      "task": "page-transcription",
+      "examples": [
+        {
+          "id": "22bda85a6b27b57bbd83",
+          "case_id": "dkhist-7664111-7273"
+        },
+        {
+          "id": "196288b0d0392e948edf",
+          "case_id": "dkhist-137660-1461"
+        },
+        {
+          "id": "53721fc82fb6ecc1c4b7",
+          "case_id": "dkhist-7664111-7621"
+        }
+      ]
+    },
+    {
+      "sample_set_id": "page-transcription/oj4ocrmt-danish",
+      "dataset_id": "oj4ocrmt-danish",
+      "task": "page-transcription",
+      "examples": [
+        {
+          "id": "4c1649bda87c685a7b7b",
+          "case_id": "oj4ocrmt-da-OJ:C:2023:045-p16"
+        },
+        {
+          "id": "fc3ce798a39686009f8a",
+          "case_id": "oj4ocrmt-da-OJ:C:2023:125-p456"
+        },
+        {
+          "id": "6d8948f5fd768664146f",
+          "case_id": "oj4ocrmt-da-OJ:C:2023:214-p87"
+        }
+      ]
+    },
+    {
+      "sample_set_id": "page-transcription/oj4ocrmt-swedish",
+      "dataset_id": "oj4ocrmt-swedish",
+      "task": "page-transcription",
+      "examples": [
+        {
+          "id": "308bc6bd3f1696a2d7b7",
+          "case_id": "oj4ocrmt-sv-OJ:L:2023:101-p23"
+        },
+        {
+          "id": "4d32fd1c6efcc82db3c8",
+          "case_id": "oj4ocrmt-sv-OJ:C:2023:126-p12"
+        },
+        {
+          "id": "0ea5921b2480a135b624",
+          "case_id": "oj4ocrmt-sv-OJ:L:2023:058-p612"
+        }
+      ]
+    },
+    {
+      "sample_set_id": "page-transcription/nasjonalt-vitenarkiv",
+      "dataset_id": "nasjonalt-vitenarkiv",
+      "task": "page-transcription",
+      "examples": [
+        {
+          "id": "03cf63be5e7018bb3f21",
+          "case_id": "nva-8822ae70-99fc-41c2-aaac-5de6acace8dc-p15"
+        },
+        {
+          "id": "9fbe13a890d345ccceb6",
+          "case_id": "nva-ee746cfd-2bba-484e-92c4-5ba934334017-p8"
+        },
+        {
+          "id": "fcd53b1240951fe5aca2",
+          "case_id": "nva-886fc4fb-2b66-48fa-978d-b7986827f416-p49"
+        }
+      ]
+    }
+  ],
+  "not_published": [],
+  "counts": {
+    "examples": 33,
+    "predictions": 600,
+    "datasets": 9
+  }
+}

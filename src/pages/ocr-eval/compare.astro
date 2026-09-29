@@ -1,0 +1,36 @@
+---
+import OCR from '../../layouts/OCR.astro';
+import '../../styles/ocr-compare.css';
+---
+<OCR title="Compare models" description="Compare OCR scores and real saved model predictions side by side, with document images and reference transcriptions." active="compare">
+  <header class="page-heading"><div><h1>Compare models</h1><p>Same documents. Different models.</p></div><button type="button" id="share-comparison" class="outline-button">Copy link</button></header>
+  <div id="compare-error" class="message" role="alert" hidden></div>
+  <section class="model-pickers" aria-label="Models to compare">
+    {[1, 2, 3].map(number => <label for={`model-${number}`}><span>Model {number}{number === 3 && ' · optional'}</span><select id={`model-${number}`} data-model-slot={number - 1} disabled><option>Loading models…</option></select></label>)}
+  </section>
+  <div class="comparison-toolbar">
+    <div class="task-options" role="group" aria-label="Comparison view"><button type="button" data-view="scores" aria-pressed="true">Dataset scores</button><button type="button" data-view="examples" aria-pressed="false">Example outputs</button></div>
+    <div class="comparison-filters"><label>Task<select id="compare-task"><option value="line-recognition">Lines</option><option value="page-transcription">Pages</option></select></label><label>Language<select id="compare-language"><option value="all">All</option><option value="da">Danish</option><option value="no">Norwegian</option><option value="sv">Swedish</option></select></label><label>Document type<select id="compare-type"><option value="all">All</option><option value="handwritten">Handwritten</option><option value="printed">Printed / typed</option></select></label></div>
+  </div>
+  <section id="scores-panel" aria-label="Dataset score comparison">
+    <div class="comparison-section-heading"><p id="score-summary"></p><div class="metric-switch" role="group" aria-label="Comparison metric"><button data-compare-metric="cer" type="button" aria-pressed="true">CER</button><button data-compare-metric="wer" type="button" aria-pressed="false">WER</button></div></div>
+    <div class="table-scroll"><table class="comparison-table"><caption class="sr-only">Selected models on each dataset. Lower error rates are better.</caption><thead id="comparison-head"></thead><tbody id="comparison-body"></tbody></table></div>
+    <p class="comparison-footnote">Lower is better. Select a dataset to inspect its examples.</p>
+  </section>
+  <section id="examples-panel" aria-label="Example output comparison" hidden>
+    <div class="example-navigation"><label>Dataset<select id="example-dataset"></select></label><div class="example-pager"><button type="button" id="previous-example" aria-label="Previous example">←</button><label><span class="sr-only">Example</span><select id="example-case"></select></label><button type="button" id="next-example" aria-label="Next example">→</button></div></div>
+    <p id="example-message" class="message" role="status" hidden></p>
+    <div id="example-content" hidden>
+      <div class="source-grid">
+        <section class="source-image-panel"><div class="panel-heading"><h2>Document image</h2><div class="image-controls"><label for="image-zoom" class="sr-only">Image zoom</label><input id="image-zoom" type="range" min="100" max="300" step="25" value="100"/><a id="open-image" target="_blank" rel="noopener">Open image ↗</a></div></div><div class="image-viewport" tabindex="0" aria-label="Document image viewer"><img id="example-image" alt="" /></div></section>
+        <section class="reference-panel"><div class="panel-heading"><h2>Reference text</h2><button type="button" id="copy-reference" class="text-button">Copy</button></div><div class="output-text reference-text" id="reference-text" tabindex="0" aria-label="Reference transcription"></div></section>
+      </div>
+      <div class="output-toolbar"><h2>Model outputs</h2><div><label><input type="checkbox" id="highlight-differences" checked/> Highlight differences</label><label><input type="checkbox" id="sync-scroll" checked/> Scroll together</label></div></div>
+      <div class="diff-legend" id="diff-legend"><span><ins>Added / changed</ins></span><span><del>Missing from output</del></span><span>Word comparison after whitespace normalization</span></div>
+      <div id="prediction-grid" class="prediction-grid"></div>
+      <details class="example-source"><summary>Example source &amp; attribution</summary><div id="example-attribution"></div><p>Examples are selected independently of model scores. Images, references and predictions come from the saved benchmark runs. <a href="/ocr-eval/examples/ATTRIBUTION.md">Credits and licenses ↗</a></p></details>
+    </div>
+  </section>
+  <noscript><p class="message">Enable JavaScript to compare models and browse examples.</p></noscript>
+  <script>import '../../scripts/ocr-compare';</script>
+</OCR>
