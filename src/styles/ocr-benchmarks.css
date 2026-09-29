@@ -1,0 +1,42 @@
+.benchmark-cards { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:16px; margin-bottom:40px; }
+.benchmark-card { display:flex; flex-direction:column; min-width:0; border:1px solid var(--line); border-radius:7px; padding:20px; background:#fff; }
+.benchmark-card[data-selected=true] { border-color:var(--red); box-shadow:inset 0 3px var(--red); }
+.benchmark-card header { display:flex; align-items:baseline; justify-content:space-between; gap:8px; }
+.benchmark-card h2 { font-size:16px; letter-spacing:-.2px; }
+.benchmark-card header>span { font-size:10px; color:var(--muted); }
+.benchmark-card>p { color:var(--muted); font-size:12px; line-height:1.65; margin:12px 0 18px; flex:1; }
+.benchmark-card dl { display:flex; gap:35px; margin:0 0 20px; }
+.benchmark-card dt { font-size:10px; color:var(--muted); }
+.benchmark-card dd { font-size:16px; font-weight:600; margin:1px 0 0; }
+.benchmark-card footer { display:flex; justify-content:space-between; gap:12px; font-size:12px; }
+.benchmark-card footer>a:first-child { font-weight:600; }
+.benchmark-card footer>a:last-child { color:var(--muted); }
+.benchmark-leaderboard { scroll-margin-top:24px; }
+.benchmark-title h2 { font-size:23px; }
+.benchmark-title p { font-size:12px; color:var(--muted); margin-top:6px; }
+.benchmark-title>a { display:inline-block; font-size:12px; margin-top:7px; }
+.benchmark-leaderboard .selection-bar>div { display:flex; gap:22px; }
+.benchmark-intro { display:flex; align-items:baseline; justify-content:space-between; gap:24px; padding-bottom:22px; border-bottom:1px solid var(--line); font-size:14px; }
+.benchmark-intro p { color:var(--muted); max-width:700px; }
+.benchmark-intro>a { white-space:nowrap; }
+.benchmark-task-list { list-style:none; margin:0; padding:0; }
+.benchmark-task { display:grid; grid-template-columns:minmax(0,1fr) minmax(220px,320px); column-gap:50px; padding:26px 0; border-bottom:1px solid var(--line); }
+.benchmark-task h2 { font-size:18px; }
+.benchmark-task p { font-size:13px; color:var(--muted); margin:9px 0; }
+.benchmark-task .task-input { font-size:13px; font-weight:600; color:var(--red); }
+.benchmark-task .entry-links { gap:22px; flex-wrap:wrap; }
+@media(max-width:1000px) { .benchmark-cards { grid-template-columns:repeat(2,minmax(0,1fr)); }.benchmark-leaderboard .table-toolbar { flex-direction:row; align-items:center; }.benchmark-task { gap:30px; } }
+@media(max-width:680px) {
+  .benchmark-cards { gap:10px; margin-bottom:28px; }
+  .benchmark-card { padding:15px 12px; }
+  .benchmark-card header { align-items:flex-start; }
+  .benchmark-card h2 { font-size:14px; }
+  .benchmark-card>p { font-size:11px; margin:10px 0 14px; }
+  .benchmark-card dl { gap:24px; margin-bottom:12px; }
+  .benchmark-card footer { flex-wrap:wrap; gap:5px 12px; font-size:11px; }
+  .benchmark-leaderboard .table-toolbar { flex-direction:column; align-items:stretch; }
+  .benchmark-leaderboard .selection-bar { flex-direction:column; gap:8px; }
+  .benchmark-intro { flex-direction:column; gap:14px; font-size:13px; }
+  .benchmark-task { grid-template-columns:1fr; gap:12px; }
+  .benchmark-task h2 { font-size:16px; }
+}

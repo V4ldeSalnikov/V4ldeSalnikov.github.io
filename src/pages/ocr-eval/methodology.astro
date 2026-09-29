@@ -8,9 +8,10 @@ const sections = [['tasks', 'Tasks'], ['sampling', 'Sample selection'], ['metric
   <div class="documentation-layout">
     <nav class="contents" aria-label="On this page"><h2>On this page</h2>{sections.map(([id, name]) => <a href={`#${id}`}>{name}</a>)}</nav>
     <article class="prose">
-      <section id="tasks"><h2>Two tasks, evaluated separately</h2>
-        <p><strong>Line recognition</strong> gives a model an image of one text line and compares its output with that line’s transcription. Existing line images are used where available; page datasets are cropped using their annotations.</p>
-        <p><strong>Page transcription</strong> gives a model the full page. Its output is compared with the reference text in reading order. The score measures text accuracy, including omissions, additions and ordering errors. It does not separately evaluate bounding boxes, tables or layout structure.</p>
+      <section id="tasks"><h2>Benchmarks and tasks</h2>
+        <p>A <strong>benchmark</strong> is a fixed collection of OCR tasks. A <strong>task</strong> pairs a dataset with the image input given to the model. The <a href="/ocr-eval/benchmarks/scandinavian/">Scandinavian OCR v1 benchmark</a> contains 11 tasks from 9 datasets. Danish, Norwegian and Swedish benchmarks contain their respective subsets. Each benchmark page lists its exact tasks and links to examples and source data.</p>
+        <p><strong>Cropped text line.</strong> The model receives an image of one line and returns that line’s text. Existing line images are used where available; page datasets are cropped using their annotations.</p>
+        <p><strong>Whole document page.</strong> The model receives an entire page and returns its text in reading order. The score measures text accuracy, including omissions, additions and ordering errors. It does not separately evaluate bounding boxes, tables or layout structure.</p>
       </section>
       <section id="sampling"><h2>Sample selection</h2>
         <p>Each dataset has a fixed evaluation sample shared by all models. The targets are <strong>1,000 lines</strong> or <strong>100 pages</strong> per dataset, using seed <code>{snapshot.run.seed}</code>. Modern Danish has 977 available lines, so all are used.</p>
@@ -25,9 +26,9 @@ const sections = [['tasks', 'Tasks'], ['sampling', 'Sample selection'], ['metric
         <h3>Unsuccessful predictions</h3><p>A failed or timed-out attempt is scored as an empty prediction against its full reference. It is not dropped from the score or retried. Repetition and other incorrect output remain part of the evaluation.</p>
       </section>
       <section id="ranking"><h2>How the leaderboard ranks models</h2>
-        <p>For a single dataset, the table shows its corpus CER and WER. When several datasets are selected, it shows the <strong>arithmetic mean of their corpus scores</strong>, giving each dataset equal weight. For example, dataset CERs of 2% and 8% produce an aggregate CER of 5%, regardless of dataset size.</p>
-        <p>A model is included only when it has a completed, scored evaluation on every selected dataset. Tasks a model does not support are omitted. Click the CER or WER column to change the ranking. Exact ties share a rank; sorting uses the full score before rounding to two decimals.</p>
-        <p>Language and document filters change the datasets being averaged, so they can change the ordering. Search only filters model names; it preserves their ranks within that selection.</p>
+        <p>A task score is its corpus CER or WER. A benchmark score is the <strong>arithmetic mean of its task scores</strong>: each listed dataset–input pair has equal weight. For example, task CERs of 2% and 8% produce a benchmark CER of 5%, regardless of image counts. A dataset evaluated as both cropped lines and whole pages contributes two tasks.</p>
+        <p>A model is ranked only when it supports and has a completed, scored evaluation on every task in the benchmark. A model that reads only cropped lines can still appear in the individual task leaderboards. Model counts on benchmark cards count models eligible for that complete benchmark.</p>
+        <p>Click CER or WER to change the ranking. Exact ties share a rank; sorting uses the full score before rounding. Search filters model names without changing their ranks. The comparison page shows individual task scores and keeps its cropped-line and whole-page means separate.</p>
       </section>
       <section id="inference"><h2>Model settings</h2>
         <p>Results cover OCR engines, specialised recognition models and vision-language models. Each uses its adapter’s preprocessing, prompt and decoding settings. Image resolution and output-token limits can differ between models; these are comparisons of the recorded configurations.</p>

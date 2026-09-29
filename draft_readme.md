@@ -22,13 +22,13 @@ The combined snapshot contains 20 model configurations and 200 completed evaluat
 
 ## Reading the scores
 
-CER and WER are error percentages: lower is better, and insertions can make them exceed 100%. A multi-dataset score is an unweighted mean of dataset corpus scores, available only after every selected dataset is completed. Incomplete evaluations are not ranked.
+CER and WER are error percentages: lower is better, and insertions can make them exceed 100%. A benchmark score is an unweighted mean of its task corpus scores, available only after every task is completed. A task is one dataset–input pair (a cropped text line or a whole page). Incomplete evaluations are not ranked.
 
 Complete means every selected sample was attempted. Failed attempts remain empty predictions in corpus CER/WER and are never silently skipped. The leaderboard shows rank, model, CER and WER; operational details remain in the results download.
 
 The white-and-red OCR pages use a separate layout from the personal website. `/ocr-eval/datasets/` describes each collection, reference text and selected sample count. `/ocr-eval/methodology/` documents sampling, normalization, corpus metrics, equal-weight aggregation and inference settings. Dataset source descriptions live in `src/data/ocr-datasets.ts`; sample sizes and split names come from the published snapshot.
 
-Filters and metric selection are reflected in the URL. Dataset sample links open the corresponding leaderboard selection. Models without a scored result for every selected dataset are omitted; search preserves the ranks of the full selection. The ranking tests verify that all 200 published model/dataset scores remain unchanged.
+The leaderboard starts with four named benchmark cards: Scandinavian, Danish, Norwegian and Swedish OCR. Versioned task membership lives in `src/data/ocr-benchmarks.ts`. Each About page lists the tasks, explains the image inputs and links to source data, individual task scores and examples. Benchmark, task and metric selections are reflected in the URL; existing dataset links remain usable. Models without a scored result for every task are omitted; search preserves ranks. Tests verify fixed benchmark membership, mixed-input aggregation and that all 200 published task scores remain unchanged.
 
 ## Existing dependency maintenance
 
@@ -36,8 +36,8 @@ The existing website lockfile has 14 npm audit findings (1 critical, 9 high, 2 m
 
 ## Model comparison and example gallery
 
-Select up to three models with the leaderboard checkboxes, or open `/ocr-eval/compare/`.
-The comparison table uses the same corpus metrics and equal-weight means as the leaderboard.
+Open `/ocr-eval/compare/` to select up to three models. Comparison controls are separate from the leaderboard.
+The comparison table uses the same task corpus metrics; its cropped-line and whole-page means remain separate.
 The example tab loads one example at a time and shows the original benchmark image, reference,
 and saved prediction for each selected model. It supports zoom, word differences, original text,
 copying, synchronized scrolling, and URLs that retain models and example selection.

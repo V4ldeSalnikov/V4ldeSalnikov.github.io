@@ -1,6 +1,7 @@
 import { rankModels, type Snapshot, type Metric } from '../lib/ocr-results';
 import { DEFAULT_MODELS, validModels, wordDiff } from '../lib/ocr-compare';
 import { datasetDescriptions, languageNames } from '../data/ocr-datasets';
+import { inputName } from '../data/ocr-benchmarks';
 
 type ExampleIndex = { groups: { sample_set_id: string; dataset_id: string; task: string; examples: { id: string; case_id: string }[] }[] };
 type Prediction = { text: string; cer: number; wer: number; inference_status: string };
@@ -21,7 +22,7 @@ const expanded = new Set<string>();
 const percent = (value: number) => `${(100 * value).toFixed(2)}%`;
 const name = (id: string) => id.split('/').slice(1).join('/') || id;
 const datasetName = (id: string) => datasetDescriptions[id]?.name ?? id;
-const taskName = (task: string) => task === 'line-recognition' ? 'Lines' : 'Pages';
+const taskName = inputName;
 function node<K extends keyof HTMLElementTagNameMap>(tag: K, text = '', className = '') {
   const item = document.createElement(tag); item.textContent = text; item.className = className; return item;
 }

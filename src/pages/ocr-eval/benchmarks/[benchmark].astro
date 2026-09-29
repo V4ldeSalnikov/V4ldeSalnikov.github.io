@@ -1,0 +1,25 @@
+---
+import OCR from '../../../layouts/OCR.astro';
+import snapshot from '../../../../public/ocr-eval/results.json';
+import { benchmarks, inputName, inputDescription } from '../../../data/ocr-benchmarks';
+import { datasetDescriptions } from '../../../data/ocr-datasets';
+import '../../../styles/ocr-benchmarks.css';
+export function getStaticPaths() { return benchmarks.map(benchmark => ({ params: { benchmark: benchmark.id }, props: { benchmark } })); }
+const { benchmark } = Astro.props;
+const samples = benchmark.sampleIds.map(id => snapshot.sample_sets.find(sample => sample.id === id)!);
+const numbers = new Intl.NumberFormat('en-GB');
+---
+<OCR title={`${benchmark.name} · ${benchmark.version}`} description={benchmark.description} active="leaderboard">
+  <header class="page-heading"><div><h1>{benchmark.name}</h1><p>{benchmark.description}</p></div><p class="benchmark-size">{benchmark.version} <span>·</span> {samples.length} tasks</p></header>
+  <div class="benchmark-intro"><p>A task pairs a dataset with an image input: a cropped text line or a whole document page. Each task below has equal weight in the benchmark score.</p><a href={`/ocr-eval/?benchmark=${benchmark.id}#leaderboard`}>View leaderboard →</a></div>
+  <ol class="benchmark-task-list">
+    {samples.map(sample => {
+      const dataset = snapshot.datasets.find(dataset => dataset.id === sample.dataset_id)!;
+      const description = datasetDescriptions[dataset.id];
+      return <li class="benchmark-task">
+        <div><h2>{description.name}</h2><p>{description.description}</p><div class="entry-links"><a href={`/ocr-eval/datasets/#${dataset.id}`}>Dataset details ↗</a><a href={dataset.source_url}>Source ↗</a></div></div>
+        <div><span class="task-input">{inputName(sample.task)}</span><p>{inputDescription(sample.task)} {numbers.format(sample.selected_samples)} images.</p><div class="entry-links"><a href={`/ocr-eval/?benchmark=${benchmark.id}&sample=${encodeURIComponent(sample.id)}#leaderboard`}>Task scores →</a><a href={`/ocr-eval/compare/?view=examples&task=${sample.task}&dataset=${dataset.id}`}>See an example ↗</a></div></div>
+      </li>;
+    })}
+  </ol>
+</OCR>

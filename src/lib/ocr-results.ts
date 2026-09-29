@@ -6,10 +6,11 @@ export type Result = { model_id: string; sample_set_id: string; status: string; 
 export type Snapshot = { models: Model[]; datasets: Dataset[]; sample_sets: SampleSet[]; results: Result[] };
 export type Row = { model: Model; metrics: Record<Metric, number>; rank: number };
 
-export function rankModels(data: Snapshot, samples: SampleSet[], task: string, metric: Metric): Row[] {
+export function rankModels(data: Snapshot, samples: SampleSet[], task: string | null, metric: Metric): Row[] {
   if (!samples.length) return [];
   const selected = new Set(samples.map(sample => sample.id));
-  const rows = data.models.filter(model => model.supported_tasks.includes(task)).flatMap(model => {
+  const tasks = task === null ? [...new Set(samples.map(sample => sample.task))] : [task];
+  const rows = data.models.filter(model => tasks.every(task => model.supported_tasks.includes(task))).flatMap(model => {
     const results = data.results.filter(result => result.model_id === model.id && selected.has(result.sample_set_id));
     // Never rank a model on a smaller subset, or silently average duplicate reports.
     if (results.length !== samples.length || new Set(results.map(result => result.sample_set_id)).size !== samples.length
