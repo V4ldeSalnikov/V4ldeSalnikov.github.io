@@ -29,6 +29,7 @@ WARNINGS = {
     "pdf-reference": "References were extracted from source PDFs, not independently transcribed by humans; extraction and reading-order errors can affect scores.",
     "source-train-split": "Samples come from the source dataset's train split; this is not an official held-out test split. This alone does not establish model training overlap.",
     "in-domain": "This model was fine-tuned on the NorHand dataset family. Interpret this pairing as in-domain, not an out-of-domain result.",
+    "line-crop": "A small inspection of modern Danish line crops found neighboring-line text inside some rectangular crops. This can contribute insertion errors; every model used the same frozen images.",
 }
 
 
@@ -58,7 +59,8 @@ def model_metadata(ocr_root):
     fields = {"name", "family", "license", "reference", "supported_tasks", "notes"}
     for path in (ocr_root / "models" / "models_implementations").glob("*.py"):
         tree = ast.parse(read_bytes(path).decode("utf-8"))
-        for node in ast.walk(tree):
+        for assignment in tree.body:
+            node = assignment.value if isinstance(assignment, (ast.Assign, ast.AnnAssign)) else None
             if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "ModelMeta":
                 values = {item.arg: ast.literal_eval(item.value) for item in node.keywords if item.arg in fields}
                 metadata[values["name"]] = values
@@ -67,6 +69,10 @@ def model_metadata(ocr_root):
 
 def export(run_dir):
     plan = read_json(run_dir / "plan.json")
+    qa_path = run_dir / "report_qa.json"
+    qa = read_json(qa_path) if qa_path.exists() else {"reports": []}
+    validated = {(row["model"], row["task"], row["dataset"]): row
+                 for row in qa["reports"] if row["passed"]}
     metadata = model_metadata(run_dir.parents[1])
     model_names = list(dict.fromkeys(job["model"] for job in plan["jobs"]))
     models = [{"id": name, **metadata[name],
@@ -98,7 +104,7 @@ def export(run_dir):
             warnings.append("pdf-reference")
         datasets.append({"id": dataset, "label": label, "language_codes": [language],
                          "document_type": document_type, "source_url": f"https://huggingface.co/datasets/{source}",
-                         "tasks": [view["task"] for view in views], "warnings": warnings})
+                         "tasks": sorted(view["task"] for view in views), "warnings": warnings})
     results = []
     for job in plan["jobs"]:
         sample_id = f"{job['task']}/{job['dataset']}"
@@ -106,37 +112,56 @@ def export(run_dir):
         directory = run_dir / "results" / job["model"].replace("/", "--") / job["task"] / job["dataset"]
         state_path = directory / "status.json"
         state = read_json(state_path) if state_path.exists() else {"status": "pending", "completed_samples": 0}
-        metrics = None
+        metrics, report = None, {}
+        failed_samples = state.get("failed_samples", 0)
         if state["status"] == "completed":
             report = read_json(directory / "report.json")
+            checked = validated[(job["model"], job["task"], job["dataset"])]
             assert report["model"] == job["model"] and report["task"] == job["task"]
             assert report["dataset"] == manifest["dataset_id"]
             assert len(report["cases"]) == state["completed_samples"] == len(manifest["cases"])
             assert report["benchmark"]["sample_manifest_sha256"] == state["sample_manifest_sha256"] == hashes[sample_id]
+            assert checked["case_count"] == len(report["cases"])
+            assert checked["corpus_metrics"] == report["corpus_metrics"]
             metrics = {name: report["corpus_metrics"][name] for name in ("cer", "wer")}
+            failed_samples = sum(case.get("inference_status") == "failed" for case in report["cases"])
+            assert all(case["prediction"] == "" for case in report["cases"] if case.get("inference_status") == "failed")
         warnings = []
         if job["model"] == "stepfun-ai/GOT-OCR-2.0-hf" or (job["model"] == "Qwen/Qwen2-VL-2B-Instruct" and sample_id == "page-transcription/historical-danish"):
             warnings.append("repetition")
         if job["model"] == "Sprakbanken/TrOCR-norhand-v3" and job["dataset"] == "norhand":
             warnings.append("in-domain")
+        if sample_id == "line-recognition/modern-danish":
+            warnings.append("line-crop")
         results.append({
+            "run_id": run_dir.name,
             "model_id": job["model"], "sample_set_id": sample_id, "status": state["status"],
             "completed_samples": state.get("completed_samples", 0),
+            "successful_samples": state.get("completed_samples", 0) - failed_samples,
+            "failed_samples": failed_samples,
             "selected_samples": len(manifest["cases"]), "target_samples": plan["targets"][job["task"]],
             "corpus_metrics": metrics, "batch_size": job["batch_size"],
             "model_revision": state.get("model_revision"), "started_at": state.get("started_at"),
             "finished_at": state.get("finished_at"), "warnings": warnings,
+            "code_revision": report.get("benchmark", {}).get("git_commit", plan["git_commit"]),
+            "implementation_sha256": report.get("benchmark", {}).get("implementation_sha256"),
+            "inference_settings": report.get("inference_settings"),
+            "runtime_guards": report.get("benchmark", {}).get("runtime_guards"),
+            "failure_policy": report.get("failure_policy"),
+            "gpu_memory": state.get("gpu_memory"),
         })
     states = Counter(result["status"] for result in results)
     return {
-        "schema_version": 1, "generated_at": datetime.now(UTC).isoformat(),
+        "schema_version": 2, "generated_at": datetime.now(UTC).isoformat(),
         "run": {
             "id": run_dir.name, "git_commit": plan["git_commit"], "seed": plan["seed"],
             "targets": plan["targets"], "excluded_model_count": len(metadata) - len(models),
-            "metric_policy": "Corpus CER/WER fractions; lower is better and values may exceed 1. Text is NFC-normalized and whitespace-collapsed; case and punctuation are preserved. Page metrics do not score layout structure.",
+            "metric_policy": "Corpus CER/WER fractions; lower is better and values may exceed 1. Failed attempts are empty predictions scored against all selected references and are not retried. Complete means every selected sample was attempted, not that every prediction succeeded. Text is NFC-normalized and whitespace-collapsed; case and punctuation are preserved. Page metrics do not score layout structure.",
             "counts": {"models": len(models), "datasets": len(datasets), "sample_sets": len(sample_sets),
                        "jobs": len(results), **{name: states[name] for name in ("completed", "running", "pending", "failed", "blocked")},
-                       "recorded_samples": sum(result["completed_samples"] for result in results)},
+                       "recorded_samples": sum(result["completed_samples"] for result in results),
+                       "successful_samples": sum(result["successful_samples"] for result in results),
+                       "failed_samples": sum(result["failed_samples"] for result in results)},
             "warnings": ["mvp-incomplete"] if states["completed"] != len(results) else [],
         },
         "tasks": [{"id": "line-recognition", "label": "Line recognition"},
@@ -146,12 +171,48 @@ def export(run_dir):
     }
 
 
+def export_runs(run_dirs):
+    snapshots = [export(path) for path in run_dirs]
+    merged = snapshots[0]
+    sources = [snapshot["run"] for snapshot in snapshots]
+    assert len({source["id"] for source in sources}) == len(sources), "Duplicate run"
+    assert all(source["seed"] == sources[0]["seed"] and source["targets"] == sources[0]["targets"]
+               for source in sources), "Runs must share sampling seed and targets"
+    for field in ("models", "datasets", "sample_sets"):
+        records = {}
+        for snapshot in snapshots:
+            for item in snapshot[field]:
+                assert item["id"] not in records or records[item["id"]] == item, f"Incompatible {field}: {item['id']}"
+                records[item["id"]] = item
+        merged[field] = list(records.values())
+    results = [result for snapshot in snapshots for result in snapshot["results"]]
+    keys = [(result["model_id"], result["sample_set_id"]) for result in results]
+    assert len(keys) == len(set(keys)), "Overlapping model/sample-set results; select one run per configuration"
+    merged["results"] = results
+    states = Counter(result["status"] for result in results)
+    merged["source_runs"] = sources
+    merged["run"] = {
+        **sources[0],
+        "id": " + ".join(source["id"] for source in sources),
+        "git_commit": ", ".join(dict.fromkeys(source["git_commit"] for source in sources)),
+        "excluded_model_count": len(model_metadata(run_dirs[0].parents[1])) - len(merged["models"]),
+        "warnings": list(dict.fromkeys(warning for source in sources for warning in source["warnings"])),
+        "counts": {"models": len(merged["models"]), "datasets": len(merged["datasets"]),
+                   "sample_sets": len(merged["sample_sets"]), "jobs": len(results),
+                   **{name: states[name] for name in ("completed", "running", "pending", "failed", "blocked")},
+                   "recorded_samples": sum(result["completed_samples"] for result in results),
+                   "successful_samples": sum(result["successful_samples"] for result in results),
+                   "failed_samples": sum(result["failed_samples"] for result in results)},
+    }
+    return merged
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--run-dir", required=True, type=Path)
+    parser.add_argument("--run-dir", required=True, type=Path, action="append", help="Repeat to combine runs with identical frozen samples")
     parser.add_argument("--output", type=Path, default=Path(__file__).resolve().parents[1] / "public" / "ocr-eval" / "results.json")
     args = parser.parse_args()
-    data = export(args.run_dir.resolve())
+    data = export_runs([path.resolve() for path in args.run_dir])
     args.output.parent.mkdir(parents=True, exist_ok=True)
     temporary = args.output.with_suffix(".tmp")
     temporary.write_text(json.dumps(data, ensure_ascii=False, allow_nan=False, separators=(",", ":")) + "\n", encoding="utf-8")

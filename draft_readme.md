@@ -7,7 +7,8 @@ The leaderboard is at `https://v4ldesalnikov.github.io/ocr-eval/`. It uses the e
 Run the exporter with Python 3.12 from this repository:
 
 ```powershell
-python scripts/export_ocr_results.py --run-dir D:/ScandiOCREval/OCR-eval/runs/mvp_20260917
+python scripts/export_ocr_results.py --run-dir D:/ScandiOCREval/OCR-eval/runs/mvp_20260917 --run-dir D:/ScandiOCREval/OCR-eval/runs/new_models_20260919
+python -m unittest discover -s scripts -p "test_*.py" -v
 npm ci
 npm run build
 ```
@@ -16,9 +17,13 @@ Review and commit `public/ocr-eval/results.json`, then push to `main` to publish
 
 Only aggregate scores and benchmark metadata are published. Document images, references, predictions, local paths, and credentials remain private to the local run directory.
 
+The combined snapshot contains 20 model configurations and 200 completed evaluations (127,540 sample attempts). The exporter requires passed report QA for completed results and identical manifests for shared sample sets. It rejects duplicate model/sample-set results instead of silently choosing one. Each result keeps its source run, recorded code/model revisions, inference settings, runtime limits and failure count; schema version 2 also includes per-run provenance in `source_runs`.
+
 ## Reading the scores
 
 CER and WER are error percentages: lower is better, and insertions can make them exceed 100%. A multi-dataset score is an unweighted mean of dataset corpus scores, available only after every selected dataset is completed. Incomplete evaluations are not ranked.
+
+Complete means every selected sample was attempted. Failed attempts remain empty predictions in corpus CER/WER and are never silently skipped. The table displays failed sample attempts separately from the evaluation status.
 
 This MVP uses frozen samples. Dataset provenance and warnings identify PDF-derived references, source training splits, in-domain models, and observed repeated generation. Results are preliminary, not publication-ready model rankings.
 

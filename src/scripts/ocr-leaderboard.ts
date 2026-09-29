@@ -2,8 +2,8 @@ type Metric = 'cer' | 'wer';
 type Dataset = { id: string; label: string; language_codes: string[]; document_type: string; source_url: string; tasks: string[]; warnings: string[] };
 type Model = { id: string; name: string; family: string; license: string; reference: string; supported_tasks: string[]; notes: string; warnings: string[] };
 type SampleSet = { id: string; dataset_id: string; task: string; selected_samples: number; target_samples: number; source_revision: string | null; split: string | null; sampling_method: string; manifest_sha256: string; reference_type: string };
-type Result = { model_id: string; sample_set_id: string; status: string; completed_samples: number; selected_samples: number; corpus_metrics: Record<Metric, number> | null; warnings: string[] };
-type Snapshot = { generated_at: string; run: { id: string; git_commit: string; seed: number; metric_policy: string; excluded_model_count: number; warnings: string[]; counts: { models: number; datasets: number; jobs: number; completed: number; running: number; pending: number; failed: number; blocked: number; recorded_samples: number } }; tasks: { id: string; label: string }[]; models: Model[]; datasets: Dataset[]; sample_sets: SampleSet[]; results: Result[]; warnings: { id: string; message: string }[] };
+type Result = { model_id: string; sample_set_id: string; status: string; completed_samples: number; failed_samples: number; selected_samples: number; corpus_metrics: Record<Metric, number> | null; warnings: string[] };
+type Snapshot = { generated_at: string; run: { id: string; git_commit: string; seed: number; metric_policy: string; excluded_model_count: number; warnings: string[]; counts: { models: number; datasets: number; jobs: number; completed: number; running: number; pending: number; failed: number; blocked: number; recorded_samples: number; failed_samples: number } }; tasks: { id: string; label: string }[]; models: Model[]; datasets: Dataset[]; sample_sets: SampleSet[]; results: Result[]; warnings: { id: string; message: string }[] };
 type Row = { model: Model; results: Result[]; metrics: Record<Metric, number> | null; coverage: number; status: string; rank: number | null };
 
 const element = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -82,10 +82,14 @@ function renderRow(row: Row, samples: SampleSet[], singleDataset: boolean) {
   const selected = samples.reduce((sum, sample) => sum + sample.selected_samples, 0);
   coverage.append(node('span', row.status === 'not-supported' ? 'task unavailable' : `${numbers.format(recorded)}/${numbers.format(selected)} ${task === 'line-recognition' ? 'lines' : 'pages'}`, 'coverage-detail'));
   tr.append(coverage);
+  const failed = row.results.reduce((sum, result) => sum + result.failed_samples, 0);
+  const failures = node('td', row.status === 'not-supported' ? '—' : numbers.format(failed), 'number-cell');
+  failures.title = 'Failed attempts remain empty predictions in CER/WER; they are not retried.';
+  tr.append(failures);
   const statusCell = node('td');
   const labels: Record<string, string> = { completed: 'Complete', running: 'Running', failed: 'Failed', blocked: 'Blocked', pending: 'Pending', 'not-supported': 'Not supported' };
   const badge = node('span', labels[row.status], `status-badge ${row.status}`);
-  badge.title = row.status === 'not-supported' ? 'This model does not support the selected task.' : singleDataset ? `${recorded} of ${selected} samples recorded.` : `${row.coverage} of ${samples.length} selected datasets completed. Partial results are not ranked.`;
+  badge.title = row.status === 'not-supported' ? 'This model does not support the selected task.' : singleDataset ? `${recorded} of ${selected} samples attempted; ${failed} failed. Complete means every sample was attempted.` : `${row.coverage} of ${samples.length} selected datasets completed; ${failed} failed sample attempts remain scored. Partial results are not ranked.`;
   statusCell.append(badge);
   tr.append(statusCell);
   return tr;
@@ -146,7 +150,7 @@ function render() {
   const selectedSamples = samples.reduce((sum, sample) => sum + sample.selected_samples, 0);
   text('selection-description', `${numbers.format(selectedSamples)} frozen ${task === 'line-recognition' ? 'lines' : 'pages'} · ${dataset.value === 'all' ? 'Equal weight per dataset' : selectedDatasets[0].label} · Lower ${rankedMetric.toUpperCase()} is better`);
   text('visible-models', `${visible.length} model${visible.length === 1 ? '' : 's'}`);
-  text('scoring-note', dataset.value === 'all' ? 'All-dataset scores are unweighted means of corpus CER / WER, not pooled scores. Only full-coverage models are ranked. Error rates may exceed 100%.' : 'Scores are corpus CER / WER for this dataset. Only completed runs are ranked. Error rates may exceed 100%.');
+  text('scoring-note', (dataset.value === 'all' ? 'All-dataset scores are unweighted means of corpus CER / WER, not pooled scores. Only full-coverage models are ranked.' : 'Scores are corpus CER / WER for this dataset. Only completed runs are ranked.') + ' Failed attempts count as empty predictions. Error rates may exceed 100%.');
   for (const key of ['cer', 'wer']) {
     const heading = element(`${key}-heading`);
     heading.textContent = `${key.toUpperCase()}${key === rankedMetric ? ' ↓' : ''}`;
@@ -177,7 +181,7 @@ function renderSnapshot() {
     ...data.datasets.flatMap((item) => item.warnings), ...data.results.flatMap((result) => result.warnings)];
   element('warning-list').replaceChildren(...warningMessages(warnings).map((message) => node('li', message)));
   const provenance = element('run-provenance');
-  for (const [label, value] of [['Run', data.run.id], ['Code revision', data.run.git_commit], ['Sampling seed', String(data.run.seed)], ['Hosted models', `${data.run.excluded_model_count} excluded (credentials required)`], ['Run status', `${counts.running} running · ${counts.pending} pending · ${counts.failed} failed · ${counts.blocked} blocked`]]) {
+  for (const [label, value] of [['Runs', data.run.id], ['Code revisions', data.run.git_commit], ['Sampling seed', String(data.run.seed)], ['Other registered models', `${data.run.excluded_model_count} not evaluated in these runs`], ['Sample attempts', `${numbers.format(counts.recorded_samples)} total · ${numbers.format(counts.failed_samples)} failed (included in scores)`], ['Run status', `${counts.running} running · ${counts.pending} pending · ${counts.failed} failed · ${counts.blocked} blocked`]]) {
     provenance.append(node('dt', label), node('dd', value));
   }
 }

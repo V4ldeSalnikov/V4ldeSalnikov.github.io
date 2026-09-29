@@ -35,7 +35,7 @@ import '../../styles/ocr-leaderboard.css';
             <div class="language-tags" aria-label="Languages"><span>DA <small>Danish</small></span><span>NO <small>Norwegian</small></span><span>SV <small>Swedish</small></span></div>
           </div>
           <aside class="snapshot-panel" aria-labelledby="snapshot-title">
-            <div class="panel-kicker" id="snapshot-title">First MVP benchmark</div>
+            <div class="panel-kicker" id="snapshot-title">Completed benchmark sweeps</div>
             <div class="snapshot-targets"><div><strong>1,000</strong><span>lines / dataset</span></div><div><strong>100</strong><span>pages / dataset</span></div></div>
             <p>Target sizes · frozen samples · shared references</p>
             <div class="snapshot-progress"><span id="completion-label">Loading evaluation snapshot…</span><span id="completion-percent">—</span></div>
@@ -48,7 +48,7 @@ import '../../styles/ocr-leaderboard.css';
           <div><strong id="stat-models">—</strong><span>local model configurations</span></div>
           <div><strong id="stat-datasets">—</strong><span>Scandinavian datasets</span></div>
           <div><strong id="stat-tasks">—</strong><span>recognition tasks</span></div>
-          <div><strong id="stat-predictions">—</strong><span>predictions recorded</span></div>
+          <div><strong id="stat-predictions">—</strong><span>sample attempts recorded</span></div>
         </section>
 
         <div class="benchmark-layout">
@@ -67,17 +67,17 @@ import '../../styles/ocr-leaderboard.css';
             <div class="table-toolbar"><div class="search-control"><label class="sr-only" for="model-search">Search models</label><span aria-hidden="true">⌕</span><input type="search" id="model-search" placeholder="Find a model…" /></div><div class="metric-control"><label for="metric">Rank by</label><select id="metric"><option value="cer">CER</option><option value="wer">WER</option></select></div></div>
             <div id="load-error" class="error-message" role="alert" hidden></div>
             <div id="table-status" class="table-status" role="status" aria-live="polite">Loading benchmark results…</div>
-            <div class="table-scroll"><table><caption class="sr-only">OCR model results. Lower character and word error rates are better. Only completed results on all selected datasets receive a rank.</caption><thead><tr><th scope="col" class="rank-cell">#</th><th scope="col">Model</th><th scope="col" class="number-cell" id="cer-heading" aria-sort="ascending">CER <span aria-hidden="true">↓</span></th><th scope="col" class="number-cell" id="wer-heading">WER</th><th scope="col" class="coverage-cell">Coverage</th><th scope="col">Status</th></tr></thead><tbody id="results-body"></tbody></table></div>
+            <div class="table-scroll"><table><caption class="sr-only">OCR model results. Lower character and word error rates are better. Only completed results on all selected datasets receive a rank.</caption><thead><tr><th scope="col" class="rank-cell">#</th><th scope="col">Model</th><th scope="col" class="number-cell" id="cer-heading" aria-sort="ascending">CER <span aria-hidden="true">↓</span></th><th scope="col" class="number-cell" id="wer-heading">WER</th><th scope="col" class="coverage-cell">Coverage</th><th scope="col" class="number-cell">Failed attempts</th><th scope="col">Status</th></tr></thead><tbody id="results-body"></tbody></table></div>
             <div class="table-footer"><span><span class="mint-dot" aria-hidden="true"></span> Lower is better. Scores are error percentages.</span><span id="visible-models">— models</span></div>
             <p class="scoring-note" id="scoring-note">All-dataset scores are unweighted means of corpus CER / WER, not pooled scores. Error rates may exceed 100%.</p>
           </section>
         </div>
 
         <section class="research-notes" aria-labelledby="notes-title">
-          <div class="notes-heading"><div class="section-kicker">Read the fine print</div><h2 id="notes-title">Results with context.</h2><p>This is a first evaluation snapshot, not a final ranking.</p></div>
+          <div class="notes-heading"><div class="section-kicker">Read the fine print</div><h2 id="notes-title">Results with context.</h2><p>Results cover these frozen samples and recorded model settings.</p></div>
           <div class="notes-grid">
             <details open><summary>Known limitations <span aria-hidden="true">+</span></summary><ul id="warning-list"><li>Loading benchmark warnings…</li></ul></details>
-            <details><summary>Scoring &amp; reproducibility <span aria-hidden="true">+</span></summary><div class="detail-copy"><p>Line recognition evaluates one image crop per reference line. Page transcription evaluates the model’s full-page output against the reference text, without matching predicted lines to annotated lines.</p><p>Both tasks use corpus character error rate (CER) and word error rate (WER). Each dataset is scored separately. Aggregated scores give each selected dataset equal weight and require a completed result on every one.</p><p id="metric-policy"></p><dl id="run-provenance"></dl><p>Model-specific decoding limits are retained. The <a href="/ocr-eval/results.json">downloadable snapshot</a> includes configurations, revisions, sample provenance, and run status.</p></div></details>
+            <details><summary>Scoring &amp; reproducibility <span aria-hidden="true">+</span></summary><div class="detail-copy"><p>Line recognition evaluates one image crop per reference line. Page transcription evaluates the model’s full-page output against the reference text, without matching predicted lines to annotated lines.</p><p>Both tasks use corpus character error rate (CER) and word error rate (WER). Each dataset is scored separately. Aggregated scores give each selected dataset equal weight and require a completed result on every one.</p><p id="metric-policy"></p><dl id="run-provenance"></dl><p>Complete means every selected sample was attempted. Failed attempts remain empty predictions in CER/WER and are not retried. Model-specific decoding limits are retained. The <a href="/ocr-eval/results.json">downloadable snapshot</a> includes configurations, revisions, sample provenance, and run status.</p></div></details>
             <details><summary>Selected datasets &amp; references <span aria-hidden="true">+</span></summary><div id="dataset-provenance" class="detail-copy"></div></details>
           </div>
         </section>
