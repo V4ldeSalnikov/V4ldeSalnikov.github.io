@@ -9,6 +9,7 @@ Run the exporter with Python 3.12 from this repository:
 ```powershell
 python scripts/export_ocr_results.py --run-dir D:/ScandiOCREval/OCR-eval/runs/mvp_20260917 --run-dir D:/ScandiOCREval/OCR-eval/runs/new_models_20260919
 python -m unittest discover -s scripts -p "test_*.py" -v
+node --test scripts/test_ocr_ranking.mjs
 npm ci
 npm run build
 ```
@@ -23,9 +24,11 @@ The combined snapshot contains 20 model configurations and 200 completed evaluat
 
 CER and WER are error percentages: lower is better, and insertions can make them exceed 100%. A multi-dataset score is an unweighted mean of dataset corpus scores, available only after every selected dataset is completed. Incomplete evaluations are not ranked.
 
-Complete means every selected sample was attempted. Failed attempts remain empty predictions in corpus CER/WER and are never silently skipped. The table displays failed sample attempts separately from the evaluation status.
+Complete means every selected sample was attempted. Failed attempts remain empty predictions in corpus CER/WER and are never silently skipped. The leaderboard shows rank, model, CER and WER; operational details remain in the results download.
 
-This MVP uses frozen samples. Dataset provenance and warnings identify PDF-derived references, source training splits, in-domain models, and observed repeated generation. Results are preliminary, not publication-ready model rankings.
+The white-and-red OCR pages use a separate layout from the personal website. `/ocr-eval/datasets/` describes each collection, reference text and selected sample count. `/ocr-eval/methodology/` documents sampling, normalization, corpus metrics, equal-weight aggregation and inference settings. Dataset source descriptions live in `src/data/ocr-datasets.ts`; sample sizes and split names come from the published snapshot.
+
+Filters and metric selection are reflected in the URL. Dataset sample links open the corresponding leaderboard selection. Models without a scored result for every selected dataset are omitted; search preserves the ranks of the full selection. The ranking tests verify that all 200 published model/dataset scores remain unchanged.
 
 ## Existing dependency maintenance
 

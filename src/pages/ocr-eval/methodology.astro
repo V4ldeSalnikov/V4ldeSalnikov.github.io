@@ -1,0 +1,44 @@
+---
+import OCR from '../../layouts/OCR.astro';
+import snapshot from '../../../public/ocr-eval/results.json';
+const sections = [['tasks', 'Tasks'], ['sampling', 'Sample selection'], ['metrics', 'Error rates'], ['ranking', 'Ranking'], ['inference', 'Model settings'], ['reproduce', 'Reproducibility']];
+---
+<OCR title="Methodology" description="How ScandiOCR Eval selects documents, runs OCR models, computes CER and WER, and ranks results." active="methodology">
+  <header class="page-heading"><div><h1>Methodology</h1><p>From a document image to a comparable score.</p></div></header>
+  <div class="documentation-layout">
+    <nav class="contents" aria-label="On this page"><h2>On this page</h2>{sections.map(([id, name]) => <a href={`#${id}`}>{name}</a>)}</nav>
+    <article class="prose">
+      <section id="tasks"><h2>Two tasks, evaluated separately</h2>
+        <p><strong>Line recognition</strong> gives a model an image of one text line and compares its output with that line’s transcription. Existing line images are used where available; page datasets are cropped using their annotations.</p>
+        <p><strong>Page transcription</strong> gives a model the full page. Its output is compared with the reference text in reading order. The score measures text accuracy, including omissions, additions and ordering errors. It does not separately evaluate bounding boxes, tables or layout structure.</p>
+      </section>
+      <section id="sampling"><h2>Sample selection</h2>
+        <p>Each dataset has a fixed evaluation sample shared by all models. The targets are <strong>1,000 lines</strong> or <strong>100 pages</strong> per dataset, using seed <code>{snapshot.run.seed}</code>. Modern Danish has 977 available lines, so all are used.</p>
+        <p>Line-only datasets use uniform sampling across the source split, except Riksarkivet, where sampling is balanced across 19 source files. Page samples are balanced across documents. Historical Danish lines are sampled from the 100 selected pages; modern Danish lines are drawn from the full collection.</p>
+        <p>The <a href="/ocr-eval/datasets/">dataset catalogue</a> lists each source split and reference type. A source labelled <code>train</code> is used for evaluation here; it is not an official held-out test split. The benchmark does not train or fine-tune models on these samples.</p>
+      </section>
+      <section id="metrics"><h2>Character and word error rates</h2>
+        <p><strong>CER</strong> measures edits at the character level. <strong>WER</strong> measures edits at the word level. Both use the minimum number of substitutions, deletions and insertions needed to turn a prediction into its reference.</p>
+        <div class="metric-equation"><span>Error rate</span><span>=</span><span class="fraction"><span>substitutions + deletions + insertions</span><span>reference characters or words</span></span><span>× 100%</span></div>
+        <p>Counts are accumulated across samples within each dataset before division: these are <strong>corpus error rates</strong>, not averages of per-image percentages. A CER of 5% means five character edits per 100 reference characters. Lower is better; insertions can push a score above 100%.</p>
+        <h3>Text normalization</h3><p>Prediction and reference are Unicode NFC-normalized, and consecutive whitespace is collapsed to one space. Leading and trailing whitespace is removed. Case, punctuation, diacritics and historical spelling are preserved. Metrics are computed with <code>jiwer</code>.</p>
+        <h3>Unsuccessful predictions</h3><p>A failed or timed-out attempt is scored as an empty prediction against its full reference. It is not dropped from the score or retried. Repetition and other incorrect output remain part of the evaluation.</p>
+      </section>
+      <section id="ranking"><h2>How the leaderboard ranks models</h2>
+        <p>For a single dataset, the table shows its corpus CER and WER. When several datasets are selected, it shows the <strong>arithmetic mean of their corpus scores</strong>, giving each dataset equal weight. For example, dataset CERs of 2% and 8% produce an aggregate CER of 5%, regardless of dataset size.</p>
+        <p>A model is included only when it has a completed, scored evaluation on every selected dataset. Tasks a model does not support are omitted. Click the CER or WER column to change the ranking. Exact ties share a rank; sorting uses the full score before rounding to two decimals.</p>
+        <p>Language and document filters change the datasets being averaged, so they can change the ordering. Search only filters model names; it preserves their ranks within that selection.</p>
+      </section>
+      <section id="inference"><h2>Model settings</h2>
+        <p>Results cover OCR engines, specialised recognition models and vision-language models. Each uses its adapter’s preprocessing, prompt and decoding settings. Image resolution and output-token limits can differ between models; these are comparisons of the recorded configurations.</p>
+        <p>The local sweeps used an NVIDIA RTX 3090 with 24 GB of VRAM and 32 GB of system RAM. Memory and time limits kept inference bounded. Exact settings, model revisions, batch sizes and runtime limits are retained per evaluation in the <a href="/ocr-eval/results.json">results download</a>.</p>
+        <p>Dataset descriptions explain relevant reference and training context, including the NorHand specialist model, line cropping, and references extracted from PDFs. No uncertainty intervals or statistical-significance claims are reported for these fixed samples.</p>
+      </section>
+      <section id="reproduce"><h2>Reproducibility</h2>
+        <p>The published scores combine two sweeps on the same fixed samples. Each exported result was checked against its report and sample manifest before publication.</p>
+        <ul class="resource-list"><li><a href="https://github.com/V4ldeSalnikov/OCR-eval">Evaluation code ↗</a><span>Dataset loaders, model adapters and scoring implementation.</span></li><li><a href="/ocr-eval/results.json" download>Results JSON ↓</a><span>Scores, sample counts, source revisions, manifest hashes, inference settings and run provenance.</span></li><li><a href="/ocr-eval/datasets/">Dataset sources →</a><span>Original collections, transcriptions and the subsets used here.</span></li></ul>
+        <p class="small-copy">The public snapshot contains aggregate results and provenance, not page images or individual transcriptions. Adapter changes after a run do not change its saved scores or recorded source hashes.</p>
+      </section>
+    </article>
+  </div>
+</OCR>

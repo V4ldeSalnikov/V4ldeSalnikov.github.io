@@ -1,90 +1,45 @@
 ---
-import '../../styles/ocr-leaderboard.css';
+import OCR from '../../layouts/OCR.astro';
+import snapshot from '../../../public/ocr-eval/results.json';
 ---
-
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="A reproducible OCR benchmark for Danish, Norwegian, and Swedish handwriting and printed documents. Compare line recognition and page transcription results." />
-    <meta name="theme-color" content="#101514" />
-    <title>ScandiOCR Eval · Leaderboard</title>
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-  </head>
-  <body>
-    <div class="site-shell">
-      <header class="topbar">
-        <a class="wordmark" href="/ocr-eval/" aria-label="ScandiOCR Eval home">
-          <span class="wordmark-icon" aria-hidden="true"><i></i><i></i><i></i></span>
-          <span>ScandiOCR <strong>Eval</strong></span>
-        </a>
-        <nav aria-label="Project links">
-          <a href="https://github.com/V4ldeSalnikov/OCR-eval">Source <span aria-hidden="true">↗</span></a>
-          <a href="/ocr-eval/results.json" download>Results JSON <span aria-hidden="true">↓</span></a>
-          <a class="personal-link" href="/">Vladimir Salnikov <span aria-hidden="true">↗</span></a>
-        </nav>
-      </header>
-
-      <main>
-        <section class="intro" aria-labelledby="page-title">
-          <div class="intro-copy">
-            <div class="eyebrow"><span class="status-dot" aria-hidden="true"></span> Scandinavian OCR benchmark <span class="badge">MVP · preliminary</span></div>
-            <h1 id="page-title">How well do OCR models<br class="desktop-break" /> read Scandinavia?</h1>
-            <p class="lede">Handwritten archives. Printed documents. Three languages.<br />A common evaluation of the models that read them.</p>
-            <div class="language-tags" aria-label="Languages"><span>DA <small>Danish</small></span><span>NO <small>Norwegian</small></span><span>SV <small>Swedish</small></span></div>
-          </div>
-          <aside class="snapshot-panel" aria-labelledby="snapshot-title">
-            <div class="panel-kicker" id="snapshot-title">Completed benchmark sweeps</div>
-            <div class="snapshot-targets"><div><strong>1,000</strong><span>lines / dataset</span></div><div><strong>100</strong><span>pages / dataset</span></div></div>
-            <p>Target sizes · frozen samples · shared references</p>
-            <div class="snapshot-progress"><span id="completion-label">Loading evaluation snapshot…</span><span id="completion-percent">—</span></div>
-            <div class="progress-track" role="progressbar" aria-label="Completed evaluations" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="progress"><span id="progress-fill"></span></div>
-            <p class="snapshot-date" id="snapshot-date">Snapshot, not a live feed.</p>
-          </aside>
-        </section>
-
-        <section class="stat-strip" aria-label="Benchmark coverage">
-          <div><strong id="stat-models">—</strong><span>local model configurations</span></div>
-          <div><strong id="stat-datasets">—</strong><span>Scandinavian datasets</span></div>
-          <div><strong id="stat-tasks">—</strong><span>recognition tasks</span></div>
-          <div><strong id="stat-predictions">—</strong><span>sample attempts recorded</span></div>
-        </section>
-
-        <div class="benchmark-layout">
-          <aside class="filters" aria-labelledby="filters-title">
-            <div class="section-kicker" id="filters-title">Explore the benchmark</div>
-            <fieldset class="task-field"><legend>Task</legend><div class="task-options"><button type="button" data-task="line-recognition" aria-pressed="true">Line recognition <span>Individual text lines</span></button><button type="button" data-task="page-transcription" aria-pressed="false">Page transcription <span>Full-page text</span></button></div></fieldset>
-            <label for="language">Language</label><select id="language"><option value="all">All languages</option><option value="da">Danish</option><option value="no">Norwegian</option><option value="sv">Swedish</option></select>
-            <label for="document-type">Document type</label><select id="document-type"><option value="all">All documents</option><option value="handwritten">Handwritten</option><option value="printed">Printed</option></select>
-            <label for="dataset">Dataset</label><select id="dataset"><option value="all">All matching datasets</option></select>
-            <div class="filter-note"><span aria-hidden="true">↳</span><p>Every ranked model is compared on the <em>same</em> selected datasets. Partial runs remain visible, but unranked.</p></div>
-          </aside>
-
-          <section class="leaderboard" aria-labelledby="leaderboard-title">
-            <div class="table-heading"><div><div class="section-kicker">The leaderboard</div><h2 id="leaderboard-title">Line recognition</h2></div><span id="dataset-count" class="dataset-count">— datasets</span></div>
-            <p id="selection-description" class="selection-description">Loading results and sample provenance…</p>
-            <div class="table-toolbar"><div class="search-control"><label class="sr-only" for="model-search">Search models</label><span aria-hidden="true">⌕</span><input type="search" id="model-search" placeholder="Find a model…" /></div><div class="metric-control"><label for="metric">Rank by</label><select id="metric"><option value="cer">CER</option><option value="wer">WER</option></select></div></div>
-            <div id="load-error" class="error-message" role="alert" hidden></div>
-            <div id="table-status" class="table-status" role="status" aria-live="polite">Loading benchmark results…</div>
-            <div class="table-scroll"><table><caption class="sr-only">OCR model results. Lower character and word error rates are better. Only completed results on all selected datasets receive a rank.</caption><thead><tr><th scope="col" class="rank-cell">#</th><th scope="col">Model</th><th scope="col" class="number-cell" id="cer-heading" aria-sort="ascending">CER <span aria-hidden="true">↓</span></th><th scope="col" class="number-cell" id="wer-heading">WER</th><th scope="col" class="coverage-cell">Coverage</th><th scope="col" class="number-cell">Failed attempts</th><th scope="col">Status</th></tr></thead><tbody id="results-body"></tbody></table></div>
-            <div class="table-footer"><span><span class="mint-dot" aria-hidden="true"></span> Lower is better. Scores are error percentages.</span><span id="visible-models">— models</span></div>
-            <p class="scoring-note" id="scoring-note">All-dataset scores are unweighted means of corpus CER / WER, not pooled scores. Error rates may exceed 100%.</p>
-          </section>
+<OCR title="Leaderboard" description="Compare OCR models on Danish, Norwegian and Swedish handwriting and printed text." active="leaderboard">
+  <header class="page-heading">
+    <div><h1>Leaderboard</h1><p>OCR for Danish, Norwegian and Swedish.</p></div>
+    <p class="benchmark-size">{snapshot.models.length} models <span>·</span> {snapshot.datasets.length} datasets</p>
+  </header>
+  <div class="benchmark-layout">
+    <aside class="filters" aria-label="Filter results">
+      <fieldset><legend>Language</legend>
+        <div class="language-options">
+          <button type="button" data-language="all" aria-pressed="true">All languages</button>
+          <button type="button" data-language="da" aria-pressed="false"><span class="language-code">DA</span>Danish</button>
+          <button type="button" data-language="no" aria-pressed="false"><span class="language-code">NO</span>Norwegian</button>
+          <button type="button" data-language="sv" aria-pressed="false"><span class="language-code">SV</span>Swedish</button>
         </div>
-
-        <section class="research-notes" aria-labelledby="notes-title">
-          <div class="notes-heading"><div class="section-kicker">Read the fine print</div><h2 id="notes-title">Results with context.</h2><p>Results cover these frozen samples and recorded model settings.</p></div>
-          <div class="notes-grid">
-            <details open><summary>Known limitations <span aria-hidden="true">+</span></summary><ul id="warning-list"><li>Loading benchmark warnings…</li></ul></details>
-            <details><summary>Scoring &amp; reproducibility <span aria-hidden="true">+</span></summary><div class="detail-copy"><p>Line recognition evaluates one image crop per reference line. Page transcription evaluates the model’s full-page output against the reference text, without matching predicted lines to annotated lines.</p><p>Both tasks use corpus character error rate (CER) and word error rate (WER). Each dataset is scored separately. Aggregated scores give each selected dataset equal weight and require a completed result on every one.</p><p id="metric-policy"></p><dl id="run-provenance"></dl><p>Complete means every selected sample was attempted. Failed attempts remain empty predictions in CER/WER and are not retried. Model-specific decoding limits are retained. The <a href="/ocr-eval/results.json">downloadable snapshot</a> includes configurations, revisions, sample provenance, and run status.</p></div></details>
-            <details><summary>Selected datasets &amp; references <span aria-hidden="true">+</span></summary><div id="dataset-provenance" class="detail-copy"></div></details>
-          </div>
-        </section>
-        <noscript><p class="error-message">JavaScript is needed to explore the leaderboard. You can still <a href="/ocr-eval/results.json">download the complete results JSON</a>.</p></noscript>
-      </main>
-      <footer class="page-footer"><span>ScandiOCR Eval <span class="footer-divider">/</span> Open evaluation, inspectable results.</span><a href="https://github.com/V4ldeSalnikov/OCR-eval">Built in the open ↗</a></footer>
-    </div>
-    <script>import '../../scripts/ocr-leaderboard';</script>
-  </body>
-</html>
+      </fieldset>
+      <div class="filter-select"><label for="document-type">Document type</label><select id="document-type"><option value="all">All documents</option><option value="handwritten">Handwritten</option><option value="printed">Printed / typed</option></select></div>
+      <div class="filter-select"><label for="dataset">Dataset</label><select id="dataset"><option value="all">All datasets</option></select></div>
+      <button type="button" id="reset-filters" class="text-button">Reset filters</button>
+      <a class="dataset-guide" href="/ocr-eval/datasets/">About the datasets <span aria-hidden="true">↗</span></a>
+    </aside>
+    <section class="leaderboard" aria-label="Model scores">
+      <div class="table-toolbar">
+        <div class="task-options" role="group" aria-label="Recognition task"><button type="button" data-task="line-recognition" aria-pressed="true">Line recognition</button><button type="button" data-task="page-transcription" aria-pressed="false">Page transcription</button></div>
+        <label class="search-control"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5" stroke="currentColor" stroke-width="1.5"/><path d="m13 13 4 4" stroke="currentColor" stroke-width="1.5"/></svg><span class="sr-only">Search models</span><input type="search" id="model-search" placeholder="Search models" /></label>
+      </div>
+      <div class="selection-bar"><span id="selection-description">Loading results…</span><a href="/ocr-eval/methodology/#metrics">How scores work ↗</a></div>
+      <div id="load-error" class="message" role="alert" hidden></div>
+      <div class="table-scroll" tabindex="0" aria-label="OCR results table">
+        <table class="scores-table">
+          <caption class="sr-only">Model rankings by error rate. Lower is better. Click CER or WER to rank by that metric.</caption>
+          <thead><tr><th scope="col" class="rank-cell">#</th><th scope="col">Model</th><th scope="col" class="number-cell" id="cer-heading" aria-sort="ascending"><button type="button" data-metric="cer" aria-label="Rank by character error rate">CER <span data-sort-arrow aria-hidden="true">↓</span><small>Character error</small></button></th><th scope="col" class="number-cell" id="wer-heading"><button type="button" data-metric="wer" aria-label="Rank by word error rate">WER <span data-sort-arrow aria-hidden="true">↕</span><small>Word error</small></button></th></tr></thead>
+          <tbody id="results-body"></tbody>
+        </table>
+      </div>
+      <p id="table-status" class="message" role="status" aria-live="polite">Loading model scores…</p>
+      <div class="table-footer"><span id="visible-models" aria-live="polite"></span><span>Error rates in % · lower is better</span></div>
+    </section>
+  </div>
+  <noscript><p class="message">Enable JavaScript to filter scores, or <a href="/ocr-eval/results.json">download the results</a>. The <a href="/ocr-eval/datasets/">datasets</a> and <a href="/ocr-eval/methodology/">methodology</a> pages work without JavaScript.</p></noscript>
+  <script>import '../../scripts/ocr-leaderboard';</script>
+</OCR>
