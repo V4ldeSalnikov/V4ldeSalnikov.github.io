@@ -86,8 +86,6 @@ function updateComparison() {
   text('compare-selection-count', `${selectedModels.size} / ${MAX_MODELS} models selected`);
   const params = new URLSearchParams({ task });
   selectedModels.forEach(id => params.append('model', id));
-  if (language !== 'all') params.set('language', language);
-  if (documentType.value !== 'all') params.set('type', documentType.value);
   if (dataset.value !== 'all') params.set('dataset', dataset.value);
   element<HTMLAnchorElement>('compare-selected').href = `/ocr-eval/compare/?${params}`;
 }

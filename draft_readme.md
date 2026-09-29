@@ -40,7 +40,8 @@ Select up to three models with the leaderboard checkboxes, or open `/ocr-eval/co
 The comparison table uses the same corpus metrics and equal-weight means as the leaderboard.
 The example tab loads one example at a time and shows the original benchmark image, reference,
 and saved prediction for each selected model. It supports zoom, word differences, original text,
-copying, synchronized scrolling, and URLs that retain models, filters and example selection.
+copying, synchronized scrolling, and URLs that retain models and example selection.
+All datasets are shown directly in comparison; line and page results keep separate means.
 Long outputs initially show 12,000 characters with an explicit expansion control; copying always
 copies the full saved text. Word alignment has a fixed work limit so repetition cannot freeze the page.
 

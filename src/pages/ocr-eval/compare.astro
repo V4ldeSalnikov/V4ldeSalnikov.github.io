@@ -10,7 +10,6 @@ import '../../styles/ocr-compare.css';
   </section>
   <div class="comparison-toolbar">
     <div class="task-options" role="group" aria-label="Comparison view"><button type="button" data-view="scores" aria-pressed="true">Dataset scores</button><button type="button" data-view="examples" aria-pressed="false">Example outputs</button></div>
-    <div class="comparison-filters"><label>Task<select id="compare-task"><option value="line-recognition">Lines</option><option value="page-transcription">Pages</option></select></label><label>Language<select id="compare-language"><option value="all">All</option><option value="da">Danish</option><option value="no">Norwegian</option><option value="sv">Swedish</option></select></label><label>Document type<select id="compare-type"><option value="all">All</option><option value="handwritten">Handwritten</option><option value="printed">Printed / typed</option></select></label></div>
   </div>
   <section id="scores-panel" aria-label="Dataset score comparison">
     <div class="comparison-section-heading"><p id="score-summary"></p><div class="metric-switch" role="group" aria-label="Comparison metric"><button data-compare-metric="cer" type="button" aria-pressed="true">CER</button><button data-compare-metric="wer" type="button" aria-pressed="false">WER</button></div></div>

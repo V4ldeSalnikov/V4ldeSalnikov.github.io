@@ -6,9 +6,6 @@ type ExampleIndex = { groups: { sample_set_id: string; dataset_id: string; task:
 type Prediction = { text: string; cer: number; wer: number; inference_status: string };
 type Example = { id: string; case_id: string; sample_set_id: string; image_url: string; reference: string; predictions: Record<string, Prediction>; attribution: { creator: string; source_url: string; license: string; license_url: string; changes: string; document_url?: string } };
 const el = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
-const task = el<HTMLSelectElement>('compare-task');
-const language = el<HTMLSelectElement>('compare-language');
-const documentType = el<HTMLSelectElement>('compare-type');
 const dataset = el<HTMLSelectElement>('example-dataset');
 const caseSelect = el<HTMLSelectElement>('example-case');
 const slots = [...document.querySelectorAll<HTMLSelectElement>('[data-model-slot]')];
@@ -24,21 +21,17 @@ const expanded = new Set<string>();
 const percent = (value: number) => `${(100 * value).toFixed(2)}%`;
 const name = (id: string) => id.split('/').slice(1).join('/') || id;
 const datasetName = (id: string) => datasetDescriptions[id]?.name ?? id;
+const taskName = (task: string) => task === 'line-recognition' ? 'Lines' : 'Pages';
 function node<K extends keyof HTMLElementTagNameMap>(tag: K, text = '', className = '') {
   const item = document.createElement(tag); item.textContent = text; item.className = className; return item;
 }
 function link(text: string, href: string) { const item = node('a', text); item.href = href; return item; }
 
-function matchingDatasets() {
-  return data.datasets.filter(item => item.tasks.includes(task.value)
-    && (language.value === 'all' || item.language_codes.includes(language.value))
-    && (documentType.value === 'all' || item.document_type === documentType.value));
-}
-function currentGroup() { return index.groups.find(group => group.dataset_id === dataset.value && group.task === task.value); }
+function currentSample() { return data.sample_sets.find(sample => sample.id === dataset.value); }
+function currentGroup() { return index.groups.find(group => group.sample_set_id === dataset.value); }
 function updateExamples(preferredDataset = dataset.value, preferredCase = caseSelect.value) {
-  const matching = matchingDatasets();
-  dataset.replaceChildren(...matching.map(item => new Option(datasetName(item.id), item.id)));
-  dataset.value = matching.some(item => item.id === preferredDataset) ? preferredDataset : matching[0]?.id ?? '';
+  dataset.replaceChildren(...data.sample_sets.map(sample => new Option(`${datasetName(sample.dataset_id)} · ${taskName(sample.task)}`, sample.id)));
+  dataset.value = data.sample_sets.some(sample => sample.id === preferredDataset) ? preferredDataset : data.sample_sets[0]?.id ?? '';
   const cases = currentGroup()?.examples ?? [];
   caseSelect.replaceChildren(...cases.map((item, i) => new Option(`Example ${i + 1} of ${cases.length}`, item.id)));
   caseSelect.value = cases.some(item => item.id === preferredCase) ? preferredCase : cases[0]?.id ?? '';
@@ -61,40 +54,38 @@ function renderPickers() {
 function saveSelection() {
   const params = new URLSearchParams();
   models.forEach(id => params.append('model', id));
-  params.set('task', task.value);
-  if (language.value !== 'all') params.set('language', language.value);
-  if (documentType.value !== 'all') params.set('type', documentType.value);
   if (view !== 'scores') params.set('view', view);
   if (metric !== 'cer') params.set('metric', metric);
-  if (dataset.value) params.set('dataset', dataset.value);
+  const sample = currentSample();
+  if (sample) { params.set('task', sample.task); params.set('dataset', sample.dataset_id); }
   if (caseSelect.value) params.set('example', caseSelect.value);
   if (!highlight.checked) params.set('highlight', 'off');
   history.replaceState(null, '', `${location.pathname}?${params}`);
 }
 function renderScores() {
-  const datasets = matchingDatasets();
-  const samples = data.sample_sets.filter(sample => sample.task === task.value && datasets.some(item => item.id === sample.dataset_id));
+  const samples = data.sample_sets;
   const header = node('tr'); header.append(node('th', 'Dataset'));
   for (const id of models) {
     const cell = node('th'); cell.append(link(name(id), data.models.find(model => model.id === id)!.reference));
     cell.append(node('small', metric.toUpperCase())); header.append(cell);
   }
   el('comparison-head').replaceChildren(header);
-  const rows = datasets.map(item => {
+  const rows = samples.map(sample => {
+    const item = data.datasets.find(dataset => dataset.id === sample.dataset_id)!;
     const row = node('tr'); const heading = node('td');
     const button = node('button', datasetName(item.id), 'dataset-score-link'); button.type = 'button';
-    button.addEventListener('click', () => { view = 'examples'; updateExamples(item.id, ''); render(); });
-    heading.append(button, node('small', item.language_codes.map(code => languageNames[code]).join(' / '))); row.append(heading);
-    const values = models.map(id => data.results.find(result => result.model_id === id && result.sample_set_id === `${task.value}/${item.id}` && result.status === 'completed')?.corpus_metrics?.[metric]);
+    button.addEventListener('click', () => { view = 'examples'; updateExamples(sample.id, ''); render(); });
+    heading.append(button, node('small', `${item.language_codes.map(code => languageNames[code]).join(' / ')} · ${taskName(sample.task)}`)); row.append(heading);
+    const values = models.map(id => data.results.find(result => result.model_id === id && result.sample_set_id === sample.id && result.status === 'completed')?.corpus_metrics?.[metric]);
     appendScores(row, values); return row;
   });
-  if (datasets.length > 1) {
-    const aggregates = rankModels(data, samples, task.value, metric);
-    const row = node('tr', '', 'mean-row'); row.append(node('td', 'Mean across datasets'));
+  for (const task of new Set(samples.map(sample => sample.task))) {
+    const aggregates = rankModels(data, samples.filter(sample => sample.task === task), task, metric);
+    const row = node('tr', '', 'mean-row'); row.append(node('td', `Mean · ${taskName(task)}`));
     appendScores(row, models.map(id => aggregates.find(item => item.model.id === id)?.metrics[metric])); rows.push(row);
   }
   el('comparison-body').replaceChildren(...rows);
-  el('score-summary').textContent = !models.length ? 'Choose models above to compare.' : `${models.length} models · ${datasets.length} datasets · ${metric.toUpperCase()} (%)`;
+  el('score-summary').textContent = !models.length ? 'Choose models above to compare.' : `${models.length} models · ${data.datasets.length} datasets · ${metric.toUpperCase()} (%)`;
   metricButtons.forEach(button => button.setAttribute('aria-pressed', String(button.dataset.compareMetric === metric)));
 }
 function appendScores(row: HTMLTableRowElement, values: (number | undefined)[]) {
@@ -115,7 +106,7 @@ function renderPredictions() {
   if (!currentExample) return;
   const example = currentExample;
   const grid = el('prediction-grid'); grid.style.setProperty('--model-count', String(Math.max(1, models.length)));
-  grid.classList.toggle('line-outputs', task.value === 'line-recognition');
+  grid.classList.toggle('line-outputs', currentSample()?.task === 'line-recognition');
   el('diff-legend').hidden = !highlight.checked;
   grid.replaceChildren(...models.map(id => {
     const card = node('article', '', 'prediction-card');
@@ -170,7 +161,7 @@ async function renderExample() {
   currentExample = null; el('example-content').hidden = true;
   const message = el('example-message'); message.hidden = false;
   if (!caseSelect.value) {
-    message.textContent = matchingDatasets().length ? 'No published examples for this dataset yet. Choose another dataset to inspect outputs.' : 'No datasets match these filters.';
+    message.textContent = 'No published examples for this dataset yet. Choose another dataset to inspect outputs.';
     return;
   }
   message.textContent = 'Loading example…';
@@ -181,11 +172,12 @@ async function renderExample() {
     }).catch(error => { cache.delete(identifier); throw error; }));
     const example = await cache.get(identifier)!;
     if (ticket !== requestId) return;
-    if (example.id !== identifier || example.sample_set_id !== `${task.value}/${dataset.value}`) throw new Error('Example selection mismatch');
+    if (example.id !== identifier || example.sample_set_id !== dataset.value) throw new Error('Example selection mismatch');
     currentExample = example; expanded.clear();
-    const image = el<HTMLImageElement>('example-image'); image.src = example.image_url; image.alt = `${datasetName(dataset.value)} — ${example.case_id}`; image.style.width = '100%';
-    image.parentElement!.classList.toggle('line-image', task.value === 'line-recognition');
-    image.closest('.source-grid')!.classList.toggle('line-example', task.value === 'line-recognition');
+    const sample = currentSample()!;
+    const image = el<HTMLImageElement>('example-image'); image.src = example.image_url; image.alt = `${datasetName(sample.dataset_id)} — ${example.case_id}`; image.style.width = '100%';
+    image.parentElement!.classList.toggle('line-image', sample.task === 'line-recognition');
+    image.closest('.source-grid')!.classList.toggle('line-example', sample.task === 'line-recognition');
     el<HTMLInputElement>('image-zoom').value = '100';
     el<HTMLAnchorElement>('open-image').href = example.image_url;
     el('reference-text').textContent = example.reference;
@@ -210,12 +202,13 @@ function restore() {
   const available = data.models.map(model => model.id);
   models = validModels(params.getAll('model'), available);
   if (!models.length) models = validModels(DEFAULT_MODELS, available);
-  task.value = params.get('task') === 'page-transcription' ? 'page-transcription' : 'line-recognition';
-  language.value = ['da', 'no', 'sv'].includes(params.get('language') ?? '') ? params.get('language')! : 'all';
-  documentType.value = ['handwritten', 'printed'].includes(params.get('type') ?? '') ? params.get('type')! : 'all';
   view = params.get('view') === 'examples' ? 'examples' : 'scores';
   metric = params.get('metric') === 'wer' ? 'wer' : 'cer'; highlight.checked = params.get('highlight') !== 'off';
-  updateExamples(params.get('dataset') ?? 'modern-danish', params.get('example') ?? ''); render();
+  const selectedTask = params.get('task') === 'page-transcription' ? 'page-transcription' : 'line-recognition';
+  const selectedDataset = params.get('dataset') ?? 'modern-danish';
+  const sample = data.sample_sets.find(sample => sample.dataset_id === selectedDataset && sample.task === selectedTask)
+    ?? data.sample_sets.find(sample => sample.dataset_id === selectedDataset);
+  updateExamples(sample?.id, params.get('example') ?? ''); render();
 }
 async function start() {
   [data, index] = await Promise.all(['/ocr-eval/results.json', '/ocr-eval/examples/index.json'].map(async url => {
@@ -223,7 +216,6 @@ async function start() {
   }));
   restore();
   slots.forEach(slot => slot.addEventListener('change', () => { models = validModels(slots.map(item => item.value), data.models.map(model => model.id)); render(); }));
-  for (const control of [task, language, documentType]) control.addEventListener('change', () => { updateExamples(); render(); });
   viewButtons.forEach(button => button.addEventListener('click', () => { view = button.dataset.view!; render(); }));
   metricButtons.forEach(button => button.addEventListener('click', () => { metric = button.dataset.compareMetric as Metric; renderScores(); saveSelection(); }));
   dataset.addEventListener('change', () => { updateExamples(dataset.value, ''); void renderExample(); saveSelection(); });
