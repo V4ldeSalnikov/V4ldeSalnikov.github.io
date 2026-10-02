@@ -2,7 +2,7 @@
 import OCR from '../../layouts/OCR.astro';
 import snapshot from '../../../public/ocr-eval/results.json';
 import { datasetDescriptions, languageNames } from '../../data/ocr-datasets';
-import { benchmarks, inputName } from '../../data/ocr-benchmarks';
+import { benchmarks } from '../../data/ocr-benchmarks';
 const datasets = snapshot.datasets.map(item => ({ ...item, ...datasetDescriptions[item.id], samples: snapshot.sample_sets.filter(sample => sample.dataset_id === item.id) }))
   .sort((a, b) => a.language_codes[0].localeCompare(b.language_codes[0]) || a.name.localeCompare(b.name));
 const numbers = new Intl.NumberFormat('en-GB');
@@ -20,7 +20,7 @@ const numbers = new Intl.NumberFormat('en-GB');
         <h2>{item.name}</h2>
         <p>{item.description}</p>
         <p><strong>Reference text.</strong> {item.reference}</p>
-        <div class="sample-summary">{item.samples.map(sample => <div><a href={`/ocr-eval/?benchmark=${benchmarks.find(benchmark => benchmark.languages.length === 1 && benchmark.sampleIds.includes(sample.id))!.id}&sample=${encodeURIComponent(sample.id)}#leaderboard`}>{inputName(sample.task)} <span aria-hidden="true">↗</span></a><span>{numbers.format(sample.selected_samples)} images · {sample.split} split</span></div>)}</div>
+        <div class="sample-summary">{item.samples.map(sample => <div><a href={`/ocr-eval/?benchmark=${benchmarks.find(benchmark => benchmark.languages.length === 1 && benchmark.sampleIds.includes(sample.id))!.id}&sample=${encodeURIComponent(sample.id)}#leaderboard`}>{sample.task === 'line-recognition' ? 'Text line scores' : 'Full page scores'} <span aria-hidden="true">→</span></a><span>{numbers.format(sample.selected_samples)} images · {sample.split} split</span></div>)}</div>
         {item.note && <p class="dataset-note">{item.note}</p>}
         <div class="entry-links"><a href={item.source_url}>Source dataset ↗</a>{item.id.startsWith('oj4ocrmt') && <a href="https://aclanthology.org/2025.mtsummit-1.9/">Publication ↗</a>}</div>
       </article>)}
