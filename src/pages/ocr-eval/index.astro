@@ -2,48 +2,35 @@
 import OCR from '../../layouts/OCR.astro';
 import snapshot from '../../../public/ocr-eval/results.json';
 import { benchmarks } from '../../data/ocr-benchmarks';
-import { rankModels } from '../../lib/ocr-results';
-import '../../styles/ocr-benchmarks.css';
-
+import '../../styles/ocr-matrix.css';
 ---
-<OCR title="Leaderboard" description="Compare OCR models on Danish, Norwegian and Swedish handwriting and printed text." active="leaderboard">
-  <header class="page-heading">
-    <div><h1>OCR benchmarks</h1><p>Fixed collections of tasks for Danish, Norwegian and Swedish.</p></div>
-    <p class="benchmark-size">{snapshot.models.length} models <span>·</span> <a href="#dataset-scores">Scores by dataset ↓</a></p>
-  </header>
-  <section class="benchmark-cards" aria-label="Choose a benchmark">
-    {benchmarks.map(benchmark => {
-      const samples = snapshot.sample_sets.filter(sample => benchmark.sampleIds.includes(sample.id));
-      const modelCount = rankModels(snapshot, samples, null, 'cer').length;
-      return <article class="benchmark-card" data-benchmark-card={benchmark.id}>
-        <header><h2>{benchmark.name}</h2><span>{benchmark.version}</span></header>
-        <p>{benchmark.description}</p>
-        <dl><div><dt>Tasks</dt><dd>{samples.length}</dd></div><div><dt>Models</dt><dd>{modelCount}</dd></div></dl>
-        <footer><a href={`?benchmark=${benchmark.id}#leaderboard`} data-benchmark={benchmark.id} aria-label={`View ${benchmark.name} leaderboard`}>Leaderboard →</a><a href={`/ocr-eval/benchmarks/${benchmark.id}/`}>About ↗</a></footer>
-      </article>;
-    })}
-  </section>
-    <section id="leaderboard" class="leaderboard benchmark-leaderboard" aria-label="Model scores">
-      <div class="benchmark-title"><h2 id="selected-benchmark">Scandinavian OCR</h2></div>
-      <div class="table-toolbar">
-        <label class="dataset-control" id="dataset-scores">
-          <span>Dataset scores</span>
-          <select id="dataset-score" disabled><option value="">All datasets · benchmark average</option></select>
-        </label>
-        <label class="search-control"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5" stroke="currentColor" stroke-width="1.5"/><path d="m13 13 4 4" stroke="currentColor" stroke-width="1.5"/></svg><span class="sr-only">Search models</span><input type="search" id="model-search" placeholder="Search models" /></label>
+<OCR title="Leaderboard" description="Task-by-task OCR scores for Danish, Norwegian and Swedish documents." active="leaderboard">
+  <div class="task-leaderboard">
+    <header class="page-heading">
+      <div><h1>Leaderboard</h1><p>OCR for Danish, Norwegian and Swedish.</p></div>
+      <p class="benchmark-size">{snapshot.models.length} models <span>·</span> {snapshot.datasets.length} datasets</p>
+    </header>
+    <section id="leaderboard" aria-label="Model scores">
+      <div class="matrix-controls">
+        <label class="matrix-select"><span>Benchmark</span><select id="benchmark-select">{benchmarks.map(item => <option value={item.id}>{item.name} · {item.version}</option>)}</select></label>
+        <fieldset class="metric-switch"><legend>Metric</legend><div><button type="button" data-metric="wer" aria-pressed="true">WER</button><button type="button" data-metric="cer" aria-pressed="false">CER</button></div></fieldset>
+        <label class="matrix-select"><span>Aggregation</span><select id="aggregation-select"><option value="mean">Mean</option><option value="win-rate">Win rate</option><option value="borda">Borda rank</option></select></label>
+        <label class="search-control"><span class="sr-only">Search models</span><input type="search" id="model-search" placeholder="Search models" /></label>
       </div>
-      <div class="selection-bar"><span id="selection-description">Loading results…</span><div><a id="benchmark-about" href="/ocr-eval/benchmarks/scandinavian/">About this benchmark ↗</a><a href="/ocr-eval/methodology/#ranking">How scores work ↗</a></div></div>
+      <div class="matrix-context">
+        <span><span id="selection-description">Loading scores…</span> <a id="benchmark-about" href="/ocr-eval/benchmarks/scandinavian/">About this benchmark ↗</a></span>
+        <div class="score-help"><button type="button" class="score-help-trigger" aria-describedby="metric-help">How scores work <span aria-hidden="true">ⓘ</span></button>
+          <div class="score-popover"><p id="metric-help">WER counts word substitutions, deletions and insertions relative to the reference text. Lower is better; scores can exceed 100%.</p><p id="aggregation-help">Mean gives each task equal weight.</p><p>Task cells always show error rates. Overall scores require results on every task. Shading compares models within each task; darker red means higher error.</p><a href="/ocr-eval/methodology/#metrics">Read more about scores →</a></div>
+        </div>
+      </div>
       <div id="load-error" class="message" role="alert" hidden></div>
-      <div class="table-scroll" tabindex="0" aria-label="OCR results table">
-        <table class="scores-table">
-          <caption class="sr-only">Model rankings by error rate. Lower is better. Click CER or WER to rank by that metric.</caption>
-          <thead><tr><th scope="col" class="rank-cell">#</th><th scope="col">Model</th><th scope="col" class="number-cell" id="cer-heading" aria-sort="ascending"><button type="button" data-metric="cer" aria-label="Rank by character error rate">CER <span data-sort-arrow aria-hidden="true">↓</span><small>Character error</small></button></th><th scope="col" class="number-cell" id="wer-heading"><button type="button" data-metric="wer" aria-label="Rank by word error rate">WER <span data-sort-arrow aria-hidden="true">↕</span><small>Word error</small></button></th></tr></thead>
-          <tbody id="results-body"></tbody>
-        </table>
+      <div class="matrix-scroll" tabindex="0" aria-label="Task scores. Scroll horizontally for more tasks.">
+        <table class="task-matrix"><caption class="sr-only" id="table-caption">Model scores for every task in the selected benchmark.</caption><colgroup id="matrix-columns"></colgroup><thead id="results-head"></thead><tbody id="results-body"></tbody></table>
       </div>
       <p id="table-status" class="message" role="status" aria-live="polite">Loading model scores…</p>
-      <div class="table-footer"><span id="visible-models" aria-live="polite"></span><span>Error rates in % · lower is better</span></div>
+      <div class="table-footer"><span id="visible-models" aria-live="polite"></span><span>Bold = best task score · Click a score for examples · — = unavailable</span></div>
     </section>
-  <noscript><p class="message">Enable JavaScript to explore scores, or <a href="/ocr-eval/results.json">download the results</a>. Benchmark descriptions, datasets and methodology work without JavaScript.</p></noscript>
+    <noscript><p class="message">Enable JavaScript to explore scores, or <a href="/ocr-eval/results.json">download the results</a>.</p></noscript>
+  </div>
   <script>import '../../scripts/ocr-leaderboard';</script>
 </OCR>
