@@ -76,15 +76,29 @@ def export_examples(snapshot, ocr_root, output):
         groups.append(group)
         for result in results:
             assert result["status"] == "completed"
-            run = ocr_root / "runs" / result["run_id"]
-            if run not in qa_cache:
-                qa_cache[run] = {(row["model"], row["task"], row["dataset"]): row for row in read_json(run / "report_qa.json")["reports"] if row["passed"]}
-            qa = qa_cache[run][(result["model_id"], sample["task"], dataset["id"])]
-            report = read_json(run / "results" / result["model_id"].replace("/", "--") / sample["task"] / dataset["id"] / "report.json")
-            assert report["model"] == result["model_id"] and report["task"] == sample["task"]
-            assert report["benchmark"]["sample_manifest_sha256"] == sample["manifest_sha256"]
-            assert qa["corpus_metrics"] == report["corpus_metrics"]
-            assert qa["case_count"] == len(report["cases"]) == sample["selected_samples"]
+            if result.get("public_report_url"):
+                public_run = ocr_root / "results" / result["run_id"]
+                published = read_json(public_run / "index.json")
+                assert published["validation"]["passed"] and published["status"] == "completed"
+                entry = next(row for row in published["tasks"] if row["sample_set_id"] == sample["id"])
+                report_path = (public_run / entry["report"]).resolve()
+                assert report_path.is_relative_to(public_run.resolve())
+                assert sha256(read_bytes(report_path)).hexdigest() == entry["sha256"]
+                report = read_json(report_path)
+                assert report["model_id"] == result["model_id"] and report["task"] == sample["task"]
+                assert report["manifest_sha256"] == sample["manifest_sha256"]
+                assert report["corpus_metrics"] == result["corpus_metrics"]
+                assert len(report["cases"]) == sample["selected_samples"]
+            else:
+                run = ocr_root / "runs" / result["run_id"]
+                if run not in qa_cache:
+                    qa_cache[run] = {(row["model"], row["task"], row["dataset"]): row for row in read_json(run / "report_qa.json")["reports"] if row["passed"]}
+                qa = qa_cache[run][(result["model_id"], sample["task"], dataset["id"])]
+                report = read_json(run / "results" / result["model_id"].replace("/", "--") / sample["task"] / dataset["id"] / "report.json")
+                assert report["model"] == result["model_id"] and report["task"] == sample["task"]
+                assert report["benchmark"]["sample_manifest_sha256"] == sample["manifest_sha256"]
+                assert qa["corpus_metrics"] == report["corpus_metrics"]
+                assert qa["case_count"] == len(report["cases"]) == sample["selected_samples"]
             matched = 0
             for case in report["cases"]:
                 example = examples.get((sample["id"], case["name"]))

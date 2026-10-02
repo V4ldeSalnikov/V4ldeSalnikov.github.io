@@ -17,7 +17,7 @@ test('v1 benchmarks define fixed, unique tasks and language subsets', () => {
       const dataset = snapshot.datasets.find(dataset => dataset.id === sample.dataset_id);
       assert.ok(dataset.language_codes.every(language => benchmark.languages.includes(language)));
     }
-    assert.equal(rankModels(snapshot, snapshot.sample_sets.filter(sample => benchmark.sampleIds.includes(sample.id)), null, 'cer').length, 16);
+    assert.equal(rankModels(snapshot, snapshot.sample_sets.filter(sample => benchmark.sampleIds.includes(sample.id)), null, 'cer').length, 18);
   }
 });
 
@@ -32,4 +32,32 @@ test('mixed-input benchmarks weight tasks equally and require every supported ta
   assert.equal(rows[0].metrics.cer, .05);
   assert.equal(rows[0].metrics.wer, .2);
   assert.equal(rankModels({ models, results }, samples.slice(0, 1), null, 'cer').length, 3);
+});
+
+
+test('hosted evaluations appear in every benchmark with verified aggregate scores', () => {
+  const expected = {
+    'OpenAI/gpt-6.1-sol': [0.15307547525415924, 0.12993260784278457, 0.18604348535070933, 0.17738253667920853],
+    'Mistral/mistral-ocr-4-1': [1.216733847, 1.938206130, 0.338016153, 0.359601079],
+  };
+  for (const [modelId, scores] of Object.entries(expected)) {
+    assert.equal(snapshot.results.filter(result => result.model_id === modelId).length, 11);
+    benchmarks.forEach((benchmark, index) => {
+      const samples = snapshot.sample_sets.filter(sample => benchmark.sampleIds.includes(sample.id));
+      const row = rankModels(snapshot, samples, null, 'cer').find(row => row.model.id === modelId);
+      assert.ok(row, `${modelId} missing from ${benchmark.id}`);
+      assert.ok(Math.abs(row.metrics.cer - scores[index]) < 1e-8);
+    });
+  }
+  const index = JSON.parse(readFileSync(new URL('../public/ocr-eval/examples/index.json', import.meta.url)));
+  let predictions = 0;
+  for (const group of index.groups) {
+    for (const item of group.examples) {
+      const example = JSON.parse(readFileSync(new URL(`../public/ocr-eval/examples/${item.id}.json`, import.meta.url)));
+      for (const modelId of Object.keys(expected)) assert.equal(example.predictions[modelId].inference_status, 'success');
+      predictions += Object.keys(example.predictions).length;
+    }
+  }
+  assert.equal(predictions, index.counts.predictions);
+  assert.equal(predictions, 666);
 });

@@ -42,7 +42,7 @@ test('all published model/dataset scores survive the redesign without alteration
       checked++;
     }
   }
-  assert.equal(checked, 200);
-  assert.equal(rankModels(data, data.sample_sets.filter(s => s.task === task), task, 'cer').length, 20);
-  assert.equal(rankModels(data, data.sample_sets.filter(s => s.task === 'page-transcription'), 'page-transcription', 'cer').length, 16);
+  assert.equal(checked, 222);
+  assert.equal(rankModels(data, data.sample_sets.filter(s => s.task === task), task, 'cer').length, 22);
+  assert.equal(rankModels(data, data.sample_sets.filter(s => s.task === 'page-transcription'), 'page-transcription', 'cer').length, 18);
 });

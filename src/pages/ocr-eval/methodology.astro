@@ -1,6 +1,7 @@
 ---
 import OCR from '../../layouts/OCR.astro';
 import snapshot from '../../../public/ocr-eval/results.json';
+import examples from '../../../public/ocr-eval/examples/index.json';
 const sections = [['tasks', 'Tasks'], ['sampling', 'Sample selection'], ['metrics', 'Error rates'], ['ranking', 'Ranking'], ['inference', 'Model settings'], ['reproduce', 'Reproducibility']];
 ---
 <OCR title="Methodology" description="How ScandiOCR Eval selects documents, runs OCR models, computes CER and WER, and ranks results." active="methodology">
@@ -33,12 +34,13 @@ const sections = [['tasks', 'Tasks'], ['sampling', 'Sample selection'], ['metric
       <section id="inference"><h2>Model settings</h2>
         <p>Results cover OCR engines, specialised recognition models and vision-language models. Each uses its adapter’s preprocessing, prompt and decoding settings. Image resolution and output-token limits can differ between models; these are comparisons of the recorded configurations.</p>
         <p>The local sweeps used an NVIDIA RTX 3090 with 24 GB of VRAM and 32 GB of system RAM. Memory and time limits kept inference bounded. Exact settings, model revisions, batch sizes and runtime limits are retained per evaluation in the <a href="/ocr-eval/results.json">results download</a>.</p>
+        <p>Hosted evaluations use the Mistral OCR 4.1 API and GPT-6.1 Sol through the standard OpenAI API with low reasoning. Both receive the original image dimensions. Mistral returns raw Markdown; GPT-6.1 Sol uses transcription prompts, with output limits of 8,192 tokens for cropped lines and 16,384 for pages, including reasoning tokens.</p>
         <p>Dataset descriptions explain relevant reference and training context, including the NorHand specialist model, line cropping, and references extracted from PDFs. No uncertainty intervals or statistical-significance claims are reported for these fixed samples.</p>
       </section>
       <section id="reproduce"><h2>Reproducibility</h2>
-        <p>The published scores combine two sweeps on the same fixed samples. Each exported result was checked against its report and sample manifest before publication.</p>
-        <ul class="resource-list"><li><a href="https://github.com/V4ldeSalnikov/OCR-eval">Evaluation code ↗</a><span>Dataset loaders, model adapters and scoring implementation.</span></li><li><a href="/ocr-eval/results.json" download>Results JSON ↓</a><span>Scores, sample counts, source revisions, manifest hashes, inference settings and run provenance.</span></li><li><a href="/ocr-eval/datasets/">Dataset sources →</a><span>Original collections, transcriptions and the subsets used here.</span></li></ul>
-        <p>The <a href="/ocr-eval/compare/">comparison view</a> includes three real examples per task and dataset: 33 images and 600 saved predictions. Cases are selected by a fixed hash of their identifiers, independently of model scores. These examples illustrate model behaviour; the leaderboard still scores the complete frozen samples.</p>
+        <p>The published scores combine {snapshot.source_runs.length} runs on the same fixed samples. Each exported result was checked against its report and sample manifest before publication.</p>
+        <ul class="resource-list"><li><a href="https://github.com/V4ldeSalnikov/OCR-eval">Evaluation code ↗</a><span>Dataset loaders, model adapters and scoring implementation.</span></li><li><a href="https://github.com/V4ldeSalnikov/OCR-eval/tree/main/results">Hosted evaluation reports ↗</a><span>Full predictions, references, scores and settings for the hosted models.</span></li><li><a href="/ocr-eval/results.json" download>Results JSON ↓</a><span>Scores, sample counts, source revisions, manifest hashes, inference settings and run provenance.</span></li><li><a href="/ocr-eval/datasets/">Dataset sources →</a><span>Original collections, transcriptions and the subsets used here.</span></li></ul>
+        <p>The <a href="/ocr-eval/compare/">comparison view</a> includes three real examples per task and dataset: {examples.counts.examples} images and {examples.counts.predictions} saved predictions. Cases are selected by a fixed hash of their identifiers, independently of model scores. These examples illustrate model behaviour; the leaderboard still scores the complete frozen samples.</p>
         <p class="small-copy">The results snapshot contains aggregate scores and provenance. The separate example gallery republishes selected benchmark images, references and predictions with <a href="/ocr-eval/examples/ATTRIBUTION.md">source attribution</a>. Highlighting compares words after Unicode and whitespace normalization; switching it off shows the saved prediction text. Per-example CER and WER are the original report metrics. Adapter changes after a run do not change its saved scores or recorded source hashes.</p>
       </section>
     </article>

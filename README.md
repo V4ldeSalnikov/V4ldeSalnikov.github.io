@@ -41,3 +41,24 @@ All commands are run from the root of the project, from a terminal:
 ## 👀 Want to learn more?
 
 Feel free to check [our documentation](https://docs.astro.build) or jump into our [Discord server](https://astro.build/chat).
+
+
+## OCR result publication
+
+Audited hosted evaluations are stored in the OCR-eval repository under `results/`.
+After regenerating the local-model snapshot and examples, merge the hosted reports:
+
+```sh
+python scripts/import_hosted_results.py --published-run ../OCR-eval/results/mistral_20261001 --published-run ../OCR-eval/results/gpt61_sol_full_20261002
+```
+
+This checks report and frozen-manifest hashes, preserves the existing models and images,
+and adds predictions to the same deterministic comparison examples. Repeating the import
+replaces those runs without duplicating results. The source bundles contain only public
+result fields; API credentials, response headers, and local runtime paths stay outside Git.
+
+```sh
+node --test scripts/test_ocr_*.mjs
+python -m unittest discover -s scripts -p "test_*.py"
+npm run build
+```
