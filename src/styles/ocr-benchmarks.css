@@ -12,23 +12,13 @@
 .benchmark-card footer>a:first-child { font-weight:600; }
 .benchmark-card footer>a:last-child { color:var(--muted); }
 .benchmark-leaderboard { scroll-margin-top:24px; }
-.scores-layout { display:grid; grid-template-columns:235px minmax(0,1fr); gap:36px; align-items:start; scroll-margin-top:24px; }
-.dataset-scores { border-right:1px solid var(--line); padding-right:24px; }
-.dataset-scores h2 { font-size:15px; letter-spacing:0; margin-bottom:14px; }
-.dataset-scores ul { list-style:none; padding:0; margin:8px 0 0; }
-.dataset-scores li { padding:14px 0; border-bottom:1px solid var(--line); }
-.dataset-scores li:last-child { border-bottom:0; }
-.dataset-scores h3 { font-size:13px; line-height:1.5; }
-.dataset-language { font-size:11px; color:var(--muted); }
-.benchmark-average { display:block; padding:9px 10px; border-radius:4px; font-size:12px; color:var(--muted); }
-.dataset-score-links { display:flex; flex-wrap:wrap; gap:5px; margin-top:6px; }
-.dataset-score-links a { padding:5px 8px; border:1px solid var(--line); border-radius:4px; font-size:11px; color:var(--muted); }
-.dataset-score-links a:hover,.benchmark-average:hover { color:var(--red); text-decoration:none; background:var(--red-soft); }
-.dataset-scores a[aria-current=true] { color:var(--red); background:var(--red-soft); border-color:var(--red); font-weight:600; }
-.dataset-score-links a span { margin-left:4px; }
+.benchmark-title { margin-bottom:16px; }
 .benchmark-title h2 { font-size:23px; }
-.benchmark-title p { font-size:12px; color:var(--muted); margin-top:6px; }
-.benchmark-title .dataset-jump { display:none; font-size:12px; margin-top:7px; }
+.benchmark-leaderboard .table-toolbar { align-items:flex-end; }
+.dataset-control { display:block; width:100%; max-width:540px; min-width:0; scroll-margin-top:24px; }
+.dataset-control>span { display:block; font-size:12px; font-weight:550; color:var(--muted); margin-bottom:6px; }
+.dataset-control select { width:100%; height:42px; padding:0 12px; border:1px solid #dddde1; border-radius:5px; background:#fff; color:inherit; font-size:14px; text-overflow:ellipsis; }
+.benchmark-leaderboard .search-control { height:42px; }
 .benchmark-leaderboard .selection-bar>div { display:flex; gap:22px; }
 .benchmark-intro { display:flex; align-items:baseline; justify-content:space-between; gap:24px; padding-bottom:22px; border-bottom:1px solid var(--line); font-size:14px; }
 .benchmark-intro p { color:var(--muted); max-width:700px; }
@@ -41,13 +31,8 @@
 .benchmark-task .entry-links { gap:22px; flex-wrap:wrap; }
 @media(max-width:1000px) {
   .benchmark-cards { grid-template-columns:repeat(2,minmax(0,1fr)); }
-  .benchmark-leaderboard .table-toolbar { flex-direction:row; align-items:center; }
+  .benchmark-leaderboard .table-toolbar { flex-direction:row; align-items:flex-end; }
   .benchmark-task { gap:30px; }
-  .scores-layout { grid-template-columns:minmax(0,1fr); gap:26px; }
-  .dataset-scores { border-right:0; padding-right:0; border-bottom:1px solid var(--line); padding-bottom:18px; }
-  .dataset-scores ul { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:0 20px; }
-  .benchmark-average { display:inline-block; }
-  .benchmark-title .dataset-jump { display:inline-block; }
 }
 @media(max-width:680px) {
   .benchmark-cards { gap:10px; margin-bottom:28px; }
@@ -58,8 +43,9 @@
   .benchmark-card dl { gap:24px; margin-bottom:12px; }
   .benchmark-card footer { flex-wrap:wrap; gap:5px 12px; font-size:11px; }
   .benchmark-leaderboard .table-toolbar { flex-direction:column; align-items:stretch; }
+  .dataset-control { max-width:none; }
+  .dataset-control select { font-size:13px; }
   .benchmark-leaderboard .selection-bar { flex-direction:column; gap:8px; }
-  .dataset-scores ul { grid-template-columns:repeat(2,minmax(0,1fr)); gap:0 14px; }
   .benchmark-intro { flex-direction:column; gap:14px; font-size:13px; }
   .benchmark-task { grid-template-columns:1fr; gap:12px; }
   .benchmark-task h2 { font-size:16px; }

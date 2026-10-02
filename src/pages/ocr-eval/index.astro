@@ -2,13 +2,9 @@
 import OCR from '../../layouts/OCR.astro';
 import snapshot from '../../../public/ocr-eval/results.json';
 import { benchmarks } from '../../data/ocr-benchmarks';
-import { datasetDescriptions, languageNames } from '../../data/ocr-datasets';
 import { rankModels } from '../../lib/ocr-results';
 import '../../styles/ocr-benchmarks.css';
-const datasets = snapshot.datasets.map(dataset => ({
-  ...dataset, name: datasetDescriptions[dataset.id].name,
-  samples: snapshot.sample_sets.filter(sample => sample.dataset_id === dataset.id),
-})).sort((a, b) => a.language_codes[0].localeCompare(b.language_codes[0]) || a.name.localeCompare(b.name));
+
 ---
 <OCR title="Leaderboard" description="Compare OCR models on Danish, Norwegian and Swedish handwriting and printed text." active="leaderboard">
   <header class="page-heading">
@@ -27,23 +23,13 @@ const datasets = snapshot.datasets.map(dataset => ({
       </article>;
     })}
   </section>
-  <div class="scores-layout" id="dataset-scores">
-    <nav class="dataset-scores" aria-label="Scores by dataset">
-      <h2>Scores by dataset</h2>
-      <a class="benchmark-average" data-score-sample="" href="?benchmark=scandinavian#leaderboard">Benchmark average</a>
-      <ul>{datasets.map(dataset => <li data-score-dataset={dataset.id}>
-        <h3>{dataset.name}</h3>
-        <span class="dataset-language">{dataset.language_codes.map(code => languageNames[code]).join(' / ')}</span>
-        <div class="dataset-score-links">{dataset.samples.map(sample => <a
-          data-score-sample={sample.id}
-          href={`?benchmark=scandinavian&sample=${encodeURIComponent(sample.id)}#leaderboard`}
-          aria-label={`${dataset.name}: ${sample.task === 'line-recognition' ? 'text line' : 'full page'} scores`}
-        >{sample.task === 'line-recognition' ? 'Text lines' : 'Full pages'} <span aria-hidden="true">→</span></a>)}</div>
-      </li>)}</ul>
-    </nav>
     <section id="leaderboard" class="leaderboard benchmark-leaderboard" aria-label="Model scores">
+      <div class="benchmark-title"><h2 id="selected-benchmark">Scandinavian OCR</h2></div>
       <div class="table-toolbar">
-        <div class="benchmark-title"><h2 id="selected-benchmark">Scandinavian OCR</h2><p id="selected-task" hidden></p><a class="dataset-jump" href="#dataset-scores">Change dataset ↑</a></div>
+        <label class="dataset-control" id="dataset-scores">
+          <span>Dataset scores</span>
+          <select id="dataset-score" disabled><option value="">All datasets · benchmark average</option></select>
+        </label>
         <label class="search-control"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5" stroke="currentColor" stroke-width="1.5"/><path d="m13 13 4 4" stroke="currentColor" stroke-width="1.5"/></svg><span class="sr-only">Search models</span><input type="search" id="model-search" placeholder="Search models" /></label>
       </div>
       <div class="selection-bar"><span id="selection-description">Loading results…</span><div><a id="benchmark-about" href="/ocr-eval/benchmarks/scandinavian/">About this benchmark ↗</a><a href="/ocr-eval/methodology/#ranking">How scores work ↗</a></div></div>
@@ -58,7 +44,6 @@ const datasets = snapshot.datasets.map(dataset => ({
       <p id="table-status" class="message" role="status" aria-live="polite">Loading model scores…</p>
       <div class="table-footer"><span id="visible-models" aria-live="polite"></span><span>Error rates in % · lower is better</span></div>
     </section>
-  </div>
   <noscript><p class="message">Enable JavaScript to explore scores, or <a href="/ocr-eval/results.json">download the results</a>. Benchmark descriptions, datasets and methodology work without JavaScript.</p></noscript>
   <script>import '../../scripts/ocr-leaderboard';</script>
 </OCR>

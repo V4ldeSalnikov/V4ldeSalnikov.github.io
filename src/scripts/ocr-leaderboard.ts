@@ -1,12 +1,12 @@
 import { rankModels, type Metric, type Snapshot, type Row } from '../lib/ocr-results';
-import { datasetDescriptions } from '../data/ocr-datasets';
-import { benchmarks, inputDescription } from '../data/ocr-benchmarks';
+import { datasetDescriptions, languageNames } from '../data/ocr-datasets';
+import { benchmarks } from '../data/ocr-benchmarks';
 
 const element = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const search = element<HTMLInputElement>('model-search');
 const body = element<HTMLTableSectionElement>('results-body');
 const metricButtons = [...document.querySelectorAll<HTMLButtonElement>('[data-metric]')];
-const scoreLinks = [...document.querySelectorAll<HTMLAnchorElement>('[data-score-sample]')];
+const datasetSelect = element<HTMLSelectElement>('dataset-score');
 let benchmark = benchmarks[0], selectedSample = '', metric: Metric = 'cer';
 let data: Snapshot;
 const numbers = new Intl.NumberFormat('en-GB');
@@ -47,24 +47,9 @@ function render() {
   const visible = rows.filter(row => `${row.model.name} ${row.model.id} ${row.model.family}`.toLowerCase().includes(query));
   body.replaceChildren(...visible.map(renderRow));
   const sample = selectedSample ? samples[0] : undefined;
-  text('selected-benchmark', sample ? datasetDescriptions[sample.dataset_id]?.name ?? sample.dataset_id : benchmark.name);
-  text('selected-task', sample ? inputDescription(sample.task) : '');
-  element('selected-task').hidden = !sample;
-  for (const link of scoreLinks) {
-    const id = link.dataset.scoreSample!;
-    const params = new URLSearchParams({ benchmark: benchmark.id });
-    if (id) params.set('sample', id);
-    if (metric !== 'cer') params.set('metric', metric);
-    if (search.value.trim()) params.set('q', search.value.trim());
-    link.href = `?${params}#leaderboard`;
-    if (id === selectedSample) link.setAttribute('aria-current', 'true');
-    else link.removeAttribute('aria-current');
-  }
-  document.querySelectorAll<HTMLElement>('[data-score-dataset]').forEach(item => {
-    item.hidden = !data.sample_sets.some(sample => sample.dataset_id === item.dataset.scoreDataset && benchmark.sampleIds.includes(sample.id));
-  });
+  text('selected-benchmark', benchmark.name);
   const count = samples.reduce((sum, sample) => sum + sample.selected_samples, 0);
-  text('selection-description', `${samples.length} task${samples.length === 1 ? '' : 's'}${sample ? '' : ' · equal-weight mean'} · ${numbers.format(count)} images`);
+  text('selection-description', `${sample ? (sample.task === 'line-recognition' ? 'Text lines' : 'Full pages') : `${samples.length} tasks · equal-weight mean`} · ${numbers.format(count)} images`);
   const about = element<HTMLAnchorElement>('benchmark-about');
   about.href = sample ? `/ocr-eval/datasets/#${sample.dataset_id}` : `/ocr-eval/benchmarks/${benchmark.id}/`;
   about.textContent = sample ? 'About this dataset ↗' : 'About this benchmark ↗';
@@ -86,6 +71,27 @@ function render() {
   saveSelection();
 }
 
+function populateDatasets() {
+  const all = node('option', 'All datasets · benchmark average');
+  all.value = '';
+  datasetSelect.replaceChildren(all);
+  const datasets = [...data.datasets].sort((a, b) => datasetDescriptions[a.id].name.localeCompare(datasetDescriptions[b.id].name));
+  for (const [code, language] of Object.entries(languageNames)) {
+    const group = node('optgroup');
+    group.label = language;
+    for (const dataset of datasets.filter(item => item.language_codes.includes(code))) {
+      for (const sample of data.sample_sets.filter(item => item.dataset_id === dataset.id && benchmark.sampleIds.includes(item.id))) {
+        const option = node('option', `${datasetDescriptions[dataset.id].name} · ${sample.task === 'line-recognition' ? 'Text lines' : 'Full pages'}`);
+        option.value = sample.id;
+        group.append(option);
+      }
+    }
+    if (group.children.length) datasetSelect.append(group);
+  }
+  datasetSelect.value = selectedSample;
+  datasetSelect.disabled = false;
+}
+
 function restoreSelection() {
   const params = new URLSearchParams(location.search);
   // Keep existing dataset links usable while replacing the old filter-based navigation.
@@ -96,6 +102,7 @@ function restoreSelection() {
   selectedSample = benchmark.sampleIds.includes(requestedSample) ? requestedSample : '';
   metric = params.get('metric') === 'wer' ? 'wer' : 'cer';
   search.value = params.get('q') ?? '';
+  populateDatasets();
   render();
 }
 
@@ -105,14 +112,13 @@ async function start() {
   data = await response.json(); restoreSelection();
   metricButtons.forEach(button => button.addEventListener('click', () => { metric = button.dataset.metric as Metric; render(); }));
   search.addEventListener('input', render);
-  scoreLinks.forEach(link => link.addEventListener('click', event => {
-    if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey || event.button !== 0) return;
-    event.preventDefault();
-    history.pushState(null, '', link.href);
+  datasetSelect.addEventListener('change', () => {
+    const url = new URL(location.href);
+    if (datasetSelect.value) url.searchParams.set('sample', datasetSelect.value);
+    else url.searchParams.delete('sample');
+    history.pushState(null, '', url);
     restoreSelection();
-    // Keep the scores visible when dataset navigation sits above them on small screens.
-    if (window.matchMedia('(max-width: 1000px)').matches) element('leaderboard').scrollIntoView();
-  }));
+  });
   window.addEventListener('popstate', restoreSelection);
 }
 
