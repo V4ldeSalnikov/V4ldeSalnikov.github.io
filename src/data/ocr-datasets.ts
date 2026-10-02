@@ -1,8 +1,8 @@
 // Source descriptions are based on the linked dataset cards; evaluation sizes come from results.json.
 export const datasetDescriptions: Record<string, { name: string; description: string; reference: string; note?: string }> = {
   'norhand': {
-    name: 'NorHand',
-    description: 'Norwegian letters and diaries from the 19th and early 20th centuries. The line images capture historical handwriting and spelling; the source release resizes each image to a height of 128 pixels.',
+    name: 'Norwegian handwriting (NorHand)',
+    description: 'NorHand contains Norwegian letters and diaries from the 19th and early 20th centuries. The line images capture historical handwriting and spelling; the source release resizes each image to a height of 128 pixels.',
     reference: 'Transcribed text supplied with each line image.',
     note: 'TrOCR-norhand-v3 was fine-tuned on the NorHand family of datasets; its NorHand result is an in-domain comparison.',
   },
@@ -23,12 +23,12 @@ export const datasetDescriptions: Record<string, { name: string; description: st
     reference: 'Line images paired with text, with source page identifiers and crop coordinates retained in the dataset.',
   },
   'riksarkivet-ood': {
-    name: 'Riksarkivet handwriting',
-    description: 'Swedish archival text lines from the National Archives’ out-of-domain HTR evaluation release. The benchmark balances its sample across 19 archive and document source files.',
+    name: 'Swedish archival handwriting',
+    description: 'Swedish archival text lines from the out-of-domain HTR evaluation release of Riksarkivet (the Swedish National Archives). The benchmark balances its sample across 19 archive and document source files.',
     reference: 'The transcription supplied with each line image in the source test split.',
   },
   'swedish-fraktur': {
-    name: 'Swedish Fraktur',
+    name: 'Swedish newspapers (Fraktur)',
     description: 'Swedish newspaper text in 19th-century blackletter type. Språkbanken produced the transcriptions, and the Swedish National Archives converted the material into line images.',
     reference: 'Transcribed text supplied with each line image, preserving historical spelling and characters.',
   },
@@ -43,8 +43,8 @@ export const datasetDescriptions: Record<string, { name: string; description: st
     reference: 'Raw text extracted from the source PDF with pdftotext. These are digital page renderings with PDF-derived references, not manually transcribed scans.',
   },
   'nasjonalt-vitenarkiv': {
-    name: 'Nasjonalt vitenarkiv',
-    description: 'Modern Norwegian research documents from the national research repository, including theses and reports. The benchmark selects pages across 19 configured Norwegian PDFs and renders them at 300 dpi.',
+    name: 'Norwegian research documents',
+    description: 'Modern Norwegian research documents from Nasjonalt vitenarkiv, the national research repository, including theses and reports. The benchmark selects pages across 19 configured Norwegian PDFs and renders them at 300 dpi.',
     reference: 'Text extracted directly from each PDF with PDFium. Extraction and reading order can differ from the visible page; references are not independent human transcriptions.',
   },
 };

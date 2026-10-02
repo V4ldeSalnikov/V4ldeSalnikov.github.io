@@ -32,6 +32,9 @@
 .task-matrix .overall-cell { position:sticky; left:var(--model-width); background:#fafafa; border-right:1px solid var(--line); z-index:2; font-weight:600; }
 .task-matrix thead .overall-cell { z-index:4; background:var(--soft); }
 .task-matrix th button { font:inherit; font-weight:600; line-height:1.35; border:0; background:none; color:inherit; text-align:inherit; padding:0; width:100%; cursor:pointer; }
+.task-matrix .dataset-heading { display:block; line-height:1.35; font-weight:600; color:inherit; text-decoration:underline; text-decoration-color:#c3c3ca; text-underline-offset:3px; }
+.task-matrix .dataset-heading:hover,.task-matrix .dataset-heading:focus-visible { color:var(--red); text-decoration-color:currentColor; }
+.task-matrix th .task-sort { margin-top:7px; font-size:10px; font-weight:400; color:var(--muted); white-space:nowrap; }
 .task-matrix th small { display:block; font-weight:400; color:var(--muted); margin-top:5px; font-size:10px; }
 .task-matrix th[aria-sort] button { color:var(--red); }
 .task-matrix th .sort-arrow { margin-left:3px; }

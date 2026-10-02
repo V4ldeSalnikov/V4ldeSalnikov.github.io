@@ -13,11 +13,6 @@ let sortKey = 'overall', descending = false;
 const number = (value: number) => value.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const percent = (value: number) => `${number(value * 100)}%`;
 const text = (id: string, value: string) => { element(id).textContent = value; };
-const names: Record<string, string> = {
-  'danish-typewritten': 'Danish typescript', 'modern-danish': 'Modern Danish', 'historical-danish': 'Historical Danish',
-  'oj4ocrmt-danish': 'EU Journal · DA', 'oj4ocrmt-swedish': 'EU Journal · SV', 'norhand': 'NorHand',
-  'nasjonalt-vitenarkiv': 'Norwegian research', 'riksarkivet-ood': 'Riksarkivet', 'swedish-fraktur': 'Swedish Fraktur',
-};
 const explanations: Record<Aggregation, string> = {
   mean: 'Mean averages the selected error rate across tasks, giving every task equal weight. Lower is better.',
   borda: 'Borda rank averages a model’s position on each task. Ties share the average position. Lower is better.',
@@ -34,15 +29,20 @@ function saveSelection(push = false) {
   if (search.value.trim()) params.set('q', search.value.trim());
   history[push ? 'pushState' : 'replaceState'](null, '', `${location.pathname}?${params}${location.hash}`);
 }
-function heading(key: string, label: string, subtitle: string, className: string, description = '') {
+function heading(key: string, label: string, subtitle: string, className: string, description = '', href = '') {
   const cell = node('th', '', className); cell.scope = 'col';
   const button = node('button'); button.type = 'button'; button.dataset.sort = key;
-  button.append(node('span', label));
+  if (href) {
+    const link = node('a', label, 'dataset-heading'); link.href = href;
+    link.title = `Read about ${label}`; cell.append(link);
+    button.className = 'task-sort';
+  }
+  button.append(node('span', href ? subtitle : label));
   const active = key === sortKey;
   button.append(node('span', active ? (descending ? '↓' : '↑') : '↕', 'sort-arrow'));
-  button.append(node('small', subtitle));
+  if (!href) button.append(node('small', subtitle));
   button.title = description || `Sort by ${label}`;
-  button.setAttribute('aria-label', `Sort by ${label}, ${subtitle}`);
+  button.setAttribute('aria-label', href ? `Sort by ${metric.toUpperCase()}: ${label}, ${subtitle}` : `Sort by ${label}, ${subtitle}`);
   if (active) cell.setAttribute('aria-sort', descending ? 'descending' : 'ascending');
   button.addEventListener('click', () => {
     descending = active ? !descending : key === 'overall' && aggregation === 'win-rate';
@@ -93,8 +93,9 @@ function render() {
   const visible = rows.filter(row => `${row.model.name} ${row.model.id} ${row.model.family}`.toLowerCase().includes(query));
   const head = node('tr'); const model = node('th', 'Model', 'model-cell'); model.scope = 'col'; head.append(model);
   head.append(heading('overall', overallLabel(), aggregation === 'win-rate' ? 'Higher is better' : 'Lower is better', 'overall-cell'));
-  for (const sample of samples) head.append(heading(sample.id, names[sample.dataset_id] ?? datasetDescriptions[sample.dataset_id].name,
-    sample.task === 'line-recognition' ? 'Text lines' : 'Full pages', '', `${datasetDescriptions[sample.dataset_id].name}. ${inputDescription(sample.task)} Click to sort by ${metric.toUpperCase()}.`));
+  for (const sample of samples) head.append(heading(sample.id, datasetDescriptions[sample.dataset_id].name,
+    sample.task === 'line-recognition' ? 'Cropped lines' : 'Full pages', '',
+    `${inputDescription(sample.task)} Sort by ${metric.toUpperCase()}.`, `/ocr-eval/datasets/#${sample.dataset_id}`));
   element('matrix-columns').replaceChildren(node('col', '', 'model-column'), node('col', '', 'overall-column'), ...samples.map(() => node('col')));
   element('results-head').replaceChildren(head);
   element('results-body').replaceChildren(...visible.map(row => renderRow(row, samples, columns)));
