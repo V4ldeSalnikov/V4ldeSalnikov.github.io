@@ -3,7 +3,7 @@ import { matrixRows, type Aggregation, type MatrixRow } from '../lib/ocr-matrix'
 import { datasetDescriptions } from '../data/ocr-datasets';
 import { benchmarks, inputDescription } from '../data/ocr-benchmarks';
 import { modelOpenness } from '../data/ocr-openness';
-import { overallChecks, scoreLabel, opennessAnchor } from '../lib/ocr-openness';
+import { overallChecks, score, scoreLabel, opennessAnchor } from '../lib/ocr-openness';
 
 const element = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const search = element<HTMLInputElement>('model-search');
@@ -63,10 +63,12 @@ function renderRow(row: MatrixRow, samples: SampleSet[], columns: Record<string,
   if (profile) {
     const total = scoreLabel(overallChecks(profile)), base = scoreLabel(profile.base.checks), post = scoreLabel(profile.post.checks);
     const details = node('a'); details.href = `/ocr-eval/openness/#${opennessAnchor(row.model.id)}`;
-    details.title = `Openness: overall ${total}; base ${base}; post-training ${post}. Ranges include unknown checks. Click for evidence.`;
+    details.title = `Confirmed openness checks: overall ${total}; base ${base}; post-training ${post}. ${score(overallChecks(profile)).unknown} overall checks are unknown. Click for the six checks and sources.`;
     details.setAttribute('aria-label', `${row.model.name}. ${details.title}`);
-    const compact = (label: string) => label.replace('/6', '').replace('Unknown', '?');
-    details.append(node('span', total, 'openness-value'), node('small', `${compact(base)} / ${compact(post)}`, 'openness-stages'));
+    for (const [label, value] of [['Overall', total], ['Base', base], ['Post-training', post]]) {
+      const line = node('span', '', `openness-line${label === 'Overall' ? ' openness-total' : ''}`);
+      line.append(node('span', label), node('span', value)); details.append(line);
+    }
     openness.append(details);
   } else { openness.textContent = 'Unknown'; }
   tr.append(openness);
@@ -115,8 +117,8 @@ function render() {
   overall.rowSpan = 2; head.append(model, overall);
   const openness = node('th', '', 'openness-cell'); openness.scope = 'col'; openness.rowSpan = 2;
   const opennessLink = node('a', 'Openness', 'openness-heading'); opennessLink.href = '/ocr-eval/openness/';
-  opennessLink.title = 'Six checks for model availability. Base and post-training are assessed separately; unknown checks produce a range. Read definitions and sources.';
-  openness.append(opennessLink, node('small', 'Base / Post'));
+  opennessLink.title = 'The number of confirmed checks out of six: weights, license, training code, training data, paper and documentation. Click for definitions and sources.';
+  openness.append(opennessLink, node('small', 'Confirmed checks'));
   head.append(openness);
   const columnGroups = [];
   for (const [datasetId, tasks] of groups) {

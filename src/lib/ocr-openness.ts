@@ -32,13 +32,13 @@ export function score(checks: Checks) {
   const values = Object.values(checks);
   const confirmed = values.filter(item => item.status === 'yes').length;
   const unknown = values.filter(item => item.status === 'unknown').length;
-  return { confirmed, unknown, possible: confirmed + unknown };
+  return { confirmed, unknown };
 }
 
 export function scoreLabel(checks: Checks): string {
-  const { confirmed, unknown, possible } = score(checks);
+  const { confirmed, unknown } = score(checks);
   if (unknown === 6) return 'Unknown';
-  return `${confirmed}${unknown ? `–${possible}` : ''}/6`;
+  return `${confirmed} of 6`;
 }
 
 export const opennessAnchor = (id: string) => encodeURIComponent(id);

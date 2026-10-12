@@ -11,8 +11,8 @@ test('open post-training cannot compensate for unavailable upstream data or code
   const base = checks('yes'), post = checks('yes');
   base.data.status = 'no'; base.code.status = 'partial';
   const result = overallChecks(profile(base, post));
-  assert.equal(scoreLabel(post), '6/6');
-  assert.equal(scoreLabel(result), '4/6');
+  assert.equal(scoreLabel(post), '6 of 6');
+  assert.equal(scoreLabel(result), '4 of 6');
   assert.equal(result.data.status, 'no');
   assert.equal(result.code.status, 'partial');
   assert.equal(post.data.status, 'yes'); // Derived checks never mutate evidence.
@@ -21,21 +21,25 @@ test('open post-training cannot compensate for unavailable upstream data or code
 test('unknown stays distinct from closed and partial, including an undisclosed base', () => {
   const base = checks('unknown'), post = checks('yes');
   assert.equal(scoreLabel(base), 'Unknown');
-  assert.equal(scoreLabel(overallChecks(profile(base, post))), '4–6/6');
+  assert.equal(scoreLabel(checks('no')), '0 of 6');
+  assert.equal(scoreLabel(overallChecks(profile(base, post))), '4 of 6');
+  assert.equal(score(overallChecks(profile(base, post))).unknown, 2);
   post.data.status = 'partial';
-  assert.equal(scoreLabel(overallChecks(profile(base, post))), '4–5/6');
+  assert.equal(scoreLabel(overallChecks(profile(base, post))), '4 of 6');
+  assert.equal(score(overallChecks(profile(base, post))).unknown, 1);
   base.code.status = 'no';
-  assert.equal(scoreLabel(overallChecks(profile(base, post))), '4/6');
+  assert.equal(scoreLabel(overallChecks(profile(base, post))), '4 of 6');
+  assert.equal(score(overallChecks(profile(base, post))).unknown, 0);
 });
 
 test('release artifacts and training lineage are assessed at their documented scopes', () => {
   const base = checks('yes'), post = checks('yes');
   base.paper.status = 'no';
-  assert.equal(scoreLabel(overallChecks(profile(base, post))), '6/6');
+  assert.equal(scoreLabel(overallChecks(profile(base, post))), '6 of 6');
   post.license.status = 'no';
   const combined = overallChecks(profile(base, post));
   assert.equal(combined.weights.status, 'yes');
-  assert.equal(scoreLabel(combined), '5/6');
+  assert.equal(scoreLabel(combined), '5 of 6');
 });
 
 test('all published models have complete, sourced and dated evidence', () => {
@@ -52,8 +56,8 @@ test('all published models have complete, sourced and dated evidence', () => {
         assert.ok(item.note.length > 10 && item.sources.length > 0);
         item.sources.forEach(source => assert.equal(new URL(source).protocol, 'https:'));
       }
-      const { confirmed, possible } = score(stage.checks);
-      assert.ok(confirmed >= 0 && possible <= 6 && confirmed <= possible);
+      const { confirmed, unknown } = score(stage.checks);
+      assert.ok(confirmed >= 0 && unknown >= 0 && confirmed + unknown <= 6);
     }
   }
   assert.equal(modelOpenness['Sprakbanken/TrOCR-norhand-v3'].post.checks.data.status, 'yes');

@@ -9,7 +9,7 @@ import { criteria, overallChecks, scoreLabel, statusLabels, opennessAnchor } fro
   <div class="openness-intro prose">
     <p>Six checks, inspired by <a href="https://docs.mteb.org/whats_new/#openness-score-for-models">MTEB</a> and the <a href="https://huggingface.co/spaces/RyeAI/danish-asr-leaderboard">Danish ASR leaderboard</a>. Each fully available item earns one point. <strong>Base</strong> covers the starting model and its earlier training; <strong>post-training</strong> covers the adaptation that produced the evaluated model.</p>
     <p>The <strong>overall</strong> index uses the final model’s weights, license, paper and documentation. Training code and training data each earn a point only when available for <strong>both stages</strong>. A fine-tune with public data therefore does not earn the overall data point if its base used unreleased data.</p>
-    <p><strong>4–6/6</strong> means four confirmed checks and two unknown checks, not a confidence interval. Partial releases earn no point. Unknown means not verified, rather than closed. Base and post-training scores are also out of six. Missing lineage stays unknown; it is never treated as “not applicable”. These scores describe availability, not OCR quality or a guarantee of reproducibility.</p>
+    <p><strong>4 of 6</strong> means four checks are confirmed. Only confirmed checks count. The breakdown labels missing evidence <strong>Unknown</strong> and incomplete releases <strong>Partial</strong>. If all six checks are unknown, the score says <strong>Unknown</strong>. The same rules apply to base and post-training scores.</p>
     <details class="criteria-details"><summary>What each check means</summary><dl>{criteria.map(([, label, description]) => <div><dt>{label}</dt><dd>{description}</dd></div>)}</dl>
       <p>Checks apply to the named release, not every model from its publisher. A base model’s paper does not count as a paper about a later fine-tune. Public API documentation can satisfy the documentation check; it does not establish open weights, code or data. For engines without a documented two-stage training history, the release is listed under post-training and the base remains unknown.</p>
       <p>This is ScandiOCR’s extension of the six-check approach, not an official MTEB rating. Source links document confirmed availability, partial releases and the scope of unknowns. Reviewed 13 October 2026.</p>
@@ -20,7 +20,7 @@ import { criteria, overallChecks, scoreLabel, statusLabels, opennessAnchor } fro
       const profile = modelOpenness[model.id];
       const overall = overallChecks(profile);
       return <details class="openness-model" id={model.id}>
-        <summary><span>{model.name}</span><span class="openness-total">{scoreLabel(overall)}</span></summary>
+        <summary><span>{model.name}</span><span class="openness-total" title="Confirmed openness checks">{scoreLabel(overall)}</span></summary>
         <div class="openness-content">
           <div class="stage-summaries">
             {[{ label: 'Base', stage: profile.base }, { label: 'Post-training', stage: profile.post }].map(({ label, stage }) => <div><h2>{label} <span>{scoreLabel(stage.checks)}</span></h2><p class="stage-name">{stage.name}</p><p>{stage.description}</p></div>)}
