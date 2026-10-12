@@ -1,0 +1,89 @@
+---
+import OCR from '../../layouts/OCR.astro';
+import snapshot from '../../../public/ocr-eval/results.json';
+import { modelOpenness } from '../../data/ocr-openness';
+import { criteria, overallChecks, scoreLabel, statusLabels, opennessAnchor } from '../../lib/ocr-openness';
+---
+<OCR title="Model openness" description="Model weights, licenses, training data and code, with separate base and post-training evidence." active="methodology">
+  <header class="page-heading"><div><h1>Model openness</h1><p>What is available for the model—and what it inherited.</p></div><a href="/ocr-eval/">Back to leaderboard →</a></header>
+  <div class="openness-intro prose">
+    <p>Six checks, inspired by <a href="https://docs.mteb.org/whats_new/#openness-score-for-models">MTEB</a> and the <a href="https://huggingface.co/spaces/RyeAI/danish-asr-leaderboard">Danish ASR leaderboard</a>. Each fully available item earns one point. <strong>Base</strong> covers the starting model and its earlier training; <strong>post-training</strong> covers the adaptation that produced the evaluated model.</p>
+    <p>The <strong>overall</strong> index uses the final model’s weights, license, paper and documentation. Training code and training data each earn a point only when available for <strong>both stages</strong>. A fine-tune with public data therefore does not earn the overall data point if its base used unreleased data.</p>
+    <p><strong>4–6/6</strong> means four confirmed checks and two unknown checks, not a confidence interval. Partial releases earn no point. Unknown means not verified, rather than closed. Base and post-training scores are also out of six. Missing lineage stays unknown; it is never treated as “not applicable”. These scores describe availability, not OCR quality or a guarantee of reproducibility.</p>
+    <details class="criteria-details"><summary>What each check means</summary><dl>{criteria.map(([, label, description]) => <div><dt>{label}</dt><dd>{description}</dd></div>)}</dl>
+      <p>Checks apply to the named release, not every model from its publisher. A base model’s paper does not count as a paper about a later fine-tune. Public API documentation can satisfy the documentation check; it does not establish open weights, code or data. For engines without a documented two-stage training history, the release is listed under post-training and the base remains unknown.</p>
+      <p>This is ScandiOCR’s extension of the six-check approach, not an official MTEB rating. Source links document confirmed availability, partial releases and the scope of unknowns. Reviewed 13 October 2026.</p>
+    </details>
+  </div>
+  <section class="openness-models" aria-label="Evidence by model">
+    {snapshot.models.map(model => {
+      const profile = modelOpenness[model.id];
+      const overall = overallChecks(profile);
+      return <details class="openness-model" id={model.id}>
+        <summary><span>{model.name}</span><span class="openness-total">{scoreLabel(overall)}</span></summary>
+        <div class="openness-content">
+          <div class="stage-summaries">
+            {[{ label: 'Base', stage: profile.base }, { label: 'Post-training', stage: profile.post }].map(({ label, stage }) => <div><h2>{label} <span>{scoreLabel(stage.checks)}</span></h2><p class="stage-name">{stage.name}</p><p>{stage.description}</p></div>)}
+          </div>
+          <div class="evidence-scroll" tabindex="0" aria-label={`Openness evidence for ${model.name}`}>
+            <table class="evidence-table"><caption class="sr-only">Six openness checks for {model.name}</caption><thead><tr><th scope="col">Check</th><th scope="col">Overall</th><th scope="col">Base</th><th scope="col">Post-training</th></tr></thead>
+              <tbody>{criteria.map(([key, label]) => <tr><th scope="row">{label}</th><td><span class={`check-status ${overall[key].status}`}>{statusLabels[overall[key].status]}</span></td>
+                {[profile.base.checks[key], profile.post.checks[key]].map(item => <td><span class={`check-status ${item.status}`}>{statusLabels[item.status]}</span><p>{item.note}</p><div class="evidence-links">{item.sources.map((source, i) => <a href={source} target="_blank" rel="noreferrer">Source{item.sources.length > 1 ? ` ${i + 1}` : ''} ↗</a>)}</div></td>)}
+              </tr>)}</tbody>
+            </table>
+          </div>
+          <p class="review-date">Reviewed {profile.reviewed} · <a href={`/ocr-eval/openness/#${opennessAnchor(model.id)}`}>Link to this model</a></p>
+        </div>
+      </details>;
+    })}
+  </section>
+  <script>
+    function revealModel() {
+      let id: string;
+      try { id = decodeURIComponent(location.hash.slice(1)); } catch { return; }
+      const model = document.getElementById(id);
+      if (model instanceof HTMLDetailsElement) { model.open = true; model.scrollIntoView({ block: 'start' }); }
+    }
+    revealModel(); window.addEventListener('hashchange', revealModel);
+  </script>
+</OCR>
+<style>
+  .openness-intro { max-width:850px; margin-bottom:28px; }
+  .openness-intro p { font-size:14px; }
+  .criteria-details { margin-top:18px; }
+  summary { cursor:pointer; }
+  .criteria-details summary { color:var(--red); font-size:14px; }
+  dl>div { display:grid; grid-template-columns:160px 1fr; gap:20px; margin:14px 0; font-size:13px; }
+  dt { font-weight:600; } dd { margin:0; }
+  .openness-model { border-top:1px solid var(--line); scroll-margin-top:20px; }
+  .openness-model:last-child { border-bottom:1px solid var(--line); }
+  .openness-model>summary { padding:18px 8px; font-size:14px; }
+  .openness-model>summary>span:first-child { margin-left:8px; overflow-wrap:anywhere; }
+  .openness-total { float:right; margin-left:16px; font-weight:600; font-variant-numeric:tabular-nums; }
+  .openness-model[open]>summary { color:var(--red); }
+  .openness-content { padding:0 8px 20px; }
+  .stage-summaries { display:grid; grid-template-columns:1fr 1fr; gap:28px; margin:10px 0 22px; }
+  .stage-summaries h2 { font-size:14px; margin-bottom:8px; }
+  .stage-summaries h2 span { margin-left:10px; font-weight:400; color:var(--muted); }
+  .stage-summaries p { font-size:12px; line-height:1.6; color:var(--muted); }
+  .stage-summaries .stage-name { color:#242427; overflow-wrap:anywhere; margin-bottom:4px; }
+  .evidence-scroll { overflow:auto; }
+  .evidence-table { width:100%; min-width:660px; border-collapse:collapse; font-size:12px; }
+  .evidence-table th,.evidence-table td { text-align:left; padding:12px; border-bottom:1px solid var(--line); vertical-align:top; }
+  .evidence-table thead { background:var(--soft); }
+  .evidence-table th:first-child { width:15%; }
+  .evidence-table th:nth-child(2) { width:12%; }
+  .evidence-table td:nth-child(n+3) { width:36.5%; }
+  .evidence-table p { color:var(--muted); line-height:1.6; margin-top:5px; }
+  .check-status { font-weight:600; }
+  .check-status.unknown { color:var(--muted); font-weight:400; }
+  .check-status.no,.check-status.partial { color:var(--red); }
+  .evidence-links { display:flex; flex-wrap:wrap; gap:12px; margin-top:6px; }
+  .review-date { font-size:11px; color:var(--muted); margin-top:14px; }
+  @media(max-width:680px) {
+    .stage-summaries { grid-template-columns:1fr; gap:18px; }
+    .openness-model>summary { font-size:12px; }
+    .openness-model>summary>span:first-child { display:inline-block; max-width:72%; vertical-align:top; }
+    dl>div { grid-template-columns:1fr; gap:4px; }
+  }
+</style>

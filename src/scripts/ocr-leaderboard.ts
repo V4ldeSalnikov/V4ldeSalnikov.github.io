@@ -2,6 +2,8 @@ import { type Metric, type SampleSet, type Snapshot } from '../lib/ocr-results';
 import { matrixRows, type Aggregation, type MatrixRow } from '../lib/ocr-matrix';
 import { datasetDescriptions } from '../data/ocr-datasets';
 import { benchmarks, inputDescription } from '../data/ocr-benchmarks';
+import { modelOpenness } from '../data/ocr-openness';
+import { overallChecks, scoreLabel, opennessAnchor } from '../lib/ocr-openness';
 
 const element = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const search = element<HTMLInputElement>('model-search');
@@ -56,6 +58,18 @@ function renderRow(row: MatrixRow, samples: SampleSet[], columns: Record<string,
   if (row.aggregate === null) overall.title = aggregation === 'win-rate' && samples.every(sample => row.scores[sample.id] !== null)
     ? 'Win rate needs at least two fully evaluated models.' : 'An overall score requires a completed evaluation on every task in this benchmark.';
   tr.append(model, overall);
+  const openness = node('td', '', 'openness-cell');
+  const profile = modelOpenness[row.model.id];
+  if (profile) {
+    const total = scoreLabel(overallChecks(profile)), base = scoreLabel(profile.base.checks), post = scoreLabel(profile.post.checks);
+    const details = node('a'); details.href = `/ocr-eval/openness/#${opennessAnchor(row.model.id)}`;
+    details.title = `Openness: overall ${total}; base ${base}; post-training ${post}. Ranges include unknown checks. Click for evidence.`;
+    details.setAttribute('aria-label', `${row.model.name}. ${details.title}`);
+    const compact = (label: string) => label.replace('/6', '').replace('Unknown', '?');
+    details.append(node('span', total, 'openness-value'), node('small', `${compact(base)} / ${compact(post)}`, 'openness-stages'));
+    openness.append(details);
+  } else { openness.textContent = 'Unknown'; }
+  tr.append(openness);
   for (const sample of samples) {
     const value = row.scores[sample.id];
     const cell = node('td', '', sortKey === sample.id ? 'selected-task' : ''); cell.dataset.sample = sample.id;
@@ -99,6 +113,11 @@ function render() {
   const model = node('th', 'Model', 'model-cell'); model.scope = 'col'; model.rowSpan = 2;
   const overall = heading('overall', overallLabel(), aggregation === 'win-rate' ? 'Higher is better' : 'Lower is better', 'overall-cell');
   overall.rowSpan = 2; head.append(model, overall);
+  const openness = node('th', '', 'openness-cell'); openness.scope = 'col'; openness.rowSpan = 2;
+  const opennessLink = node('a', 'Openness', 'openness-heading'); opennessLink.href = '/ocr-eval/openness/';
+  opennessLink.title = 'Six checks for model availability. Base and post-training are assessed separately; unknown checks produce a range. Read definitions and sources.';
+  openness.append(opennessLink, node('small', 'Base / Post'));
+  head.append(openness);
   const columnGroups = [];
   for (const [datasetId, tasks] of groups) {
     const name = datasetDescriptions[datasetId].name;
@@ -116,11 +135,11 @@ function render() {
   }
   const table = document.querySelector<HTMLTableElement>('.task-matrix')!;
   table.querySelectorAll('colgroup[data-dataset]').forEach(group => group.remove());
-  element('matrix-columns').replaceChildren(node('col', '', 'model-column'), node('col', '', 'overall-column'));
+  element('matrix-columns').replaceChildren(node('col', '', 'model-column'), node('col', '', 'overall-column'), node('col', '', 'openness-column'));
   element('matrix-columns').after(...columnGroups);
   element('results-head').replaceChildren(head, taskHead);
   element('results-body').replaceChildren(...visible.map(row => renderRow(row, samples, columns, groupEnds)));
-  table.style.minWidth = `calc(var(--model-width) + var(--overall-width) + ${96 * samples.length}px)`;
+  table.style.minWidth = `calc(var(--model-width) + var(--overall-width) + var(--openness-width) + ${96 * samples.length}px)`;
   text('table-caption', `${benchmark.name}: ${overallLabel()} and ${metric.toUpperCase()} for each task, grouped by dataset. Cropped lines and full pages are separate tasks. Task error rates are percentages; lower is better.`);
   text('selection-description', `${groups.size} datasets · ${samples.length} tasks · ${metric.toUpperCase()} (%)`);
   text('metric-help', `${metric === 'wer' ? 'WER counts word' : 'CER counts character'} substitutions, deletions and insertions relative to the reference text. Lower is better; scores can exceed 100%.`);
