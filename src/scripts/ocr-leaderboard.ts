@@ -29,20 +29,15 @@ function saveSelection(push = false) {
   if (search.value.trim()) params.set('q', search.value.trim());
   history[push ? 'pushState' : 'replaceState'](null, '', `${location.pathname}?${params}${location.hash}`);
 }
-function heading(key: string, label: string, subtitle: string, className: string, description = '', href = '') {
+function heading(key: string, label: string, subtitle: string, className: string, description = '') {
   const cell = node('th', '', className); cell.scope = 'col';
   const button = node('button'); button.type = 'button'; button.dataset.sort = key;
-  if (href) {
-    const link = node('a', label, 'dataset-heading'); link.href = href;
-    link.title = `Read about ${label}`; cell.append(link);
-    button.className = 'task-sort';
-  }
-  button.append(node('span', href ? subtitle : label));
+  button.append(node('span', label));
   const active = key === sortKey;
   button.append(node('span', active ? (descending ? '↓' : '↑') : '↕', 'sort-arrow'));
-  if (!href) button.append(node('small', subtitle));
+  if (subtitle) button.append(node('small', subtitle));
   button.title = description || `Sort by ${label}`;
-  button.setAttribute('aria-label', href ? `Sort by ${metric.toUpperCase()}: ${label}, ${subtitle}` : `Sort by ${label}, ${subtitle}`);
+  button.setAttribute('aria-label', description || `Sort by ${label}, ${subtitle}`);
   if (active) cell.setAttribute('aria-sort', descending ? 'descending' : 'ascending');
   button.addEventListener('click', () => {
     descending = active ? !descending : key === 'overall' && aggregation === 'win-rate';
@@ -50,7 +45,7 @@ function heading(key: string, label: string, subtitle: string, className: string
   });
   cell.append(button); return cell;
 }
-function renderRow(row: MatrixRow, samples: SampleSet[], columns: Record<string, number[]>) {
+function renderRow(row: MatrixRow, samples: SampleSet[], columns: Record<string, number[]>, groupEnds: Set<string>) {
   const tr = node('tr'); tr.dataset.model = row.model.id;
   const model = node('td', '', 'model-cell');
   const [publisher, ...parts] = row.model.name.split('/');
@@ -64,6 +59,8 @@ function renderRow(row: MatrixRow, samples: SampleSet[], columns: Record<string,
   for (const sample of samples) {
     const value = row.scores[sample.id];
     const cell = node('td', '', sortKey === sample.id ? 'selected-task' : ''); cell.dataset.sample = sample.id;
+    if (groupEnds.has(sample.id)) cell.classList.add('dataset-end');
+    cell.setAttribute('headers', `dataset-${sample.dataset_id} task-${sample.id}`);
     if (value === null) { cell.textContent = '—'; cell.classList.add('missing-score'); cell.title = 'No completed score for this task.'; }
     else {
       const scores = columns[sample.id];
@@ -80,8 +77,15 @@ function renderRow(row: MatrixRow, samples: SampleSet[], columns: Record<string,
   return tr;
 }
 function render() {
-  const samples = benchmark.sampleIds.map(id => data.sample_sets.find(sample => sample.id === id)!).filter(Boolean);
-  const rows = matrixRows(data, samples, metric, aggregation);
+  const benchmarkSamples = benchmark.sampleIds.map(id => data.sample_sets.find(sample => sample.id === id)!).filter(Boolean);
+  const groups = new Map<string, SampleSet[]>();
+  for (const sample of benchmarkSamples) {
+    if (!groups.has(sample.dataset_id)) groups.set(sample.dataset_id, []);
+    groups.get(sample.dataset_id)!.push(sample);
+  }
+  const samples = [...groups.values()].flat();
+  const groupEnds = new Set([...groups.values()].map(group => group[group.length - 1].id));
+  const rows = matrixRows(data, benchmarkSamples, metric, aggregation);
   const columns = Object.fromEntries(samples.map(sample => [sample.id, rows.map(row => row.scores[sample.id]).filter((value): value is number => value !== null)]));
   const value = (row: MatrixRow) => sortKey === 'overall' ? row.aggregate : row.scores[sortKey];
   rows.sort((a, b) => {
@@ -91,18 +95,34 @@ function render() {
   });
   const query = search.value.trim().toLowerCase();
   const visible = rows.filter(row => `${row.model.name} ${row.model.id} ${row.model.family}`.toLowerCase().includes(query));
-  const head = node('tr'); const model = node('th', 'Model', 'model-cell'); model.scope = 'col'; head.append(model);
-  head.append(heading('overall', overallLabel(), aggregation === 'win-rate' ? 'Higher is better' : 'Lower is better', 'overall-cell'));
-  for (const sample of samples) head.append(heading(sample.id, datasetDescriptions[sample.dataset_id].name,
-    sample.task === 'line-recognition' ? 'Cropped lines' : 'Full pages', '',
-    `${inputDescription(sample.task)} Sort by ${metric.toUpperCase()}.`, `/ocr-eval/datasets/#${sample.dataset_id}`));
-  element('matrix-columns').replaceChildren(node('col', '', 'model-column'), node('col', '', 'overall-column'), ...samples.map(() => node('col')));
-  element('results-head').replaceChildren(head);
-  element('results-body').replaceChildren(...visible.map(row => renderRow(row, samples, columns)));
+  const head = node('tr'), taskHead = node('tr', '', 'task-headings');
+  const model = node('th', 'Model', 'model-cell'); model.scope = 'col'; model.rowSpan = 2;
+  const overall = heading('overall', overallLabel(), aggregation === 'win-rate' ? 'Higher is better' : 'Lower is better', 'overall-cell');
+  overall.rowSpan = 2; head.append(model, overall);
+  const columnGroups = [];
+  for (const [datasetId, tasks] of groups) {
+    const name = datasetDescriptions[datasetId].name;
+    const group = node('th', '', 'dataset-group dataset-end');
+    group.id = `dataset-${datasetId}`; group.scope = 'colgroup'; group.colSpan = tasks.length;
+    const link = node('a', name, 'dataset-heading'); link.href = `/ocr-eval/datasets/#${datasetId}`;
+    link.title = `Read about ${name}`; group.append(link); head.append(group);
+    const columns = node('colgroup'); columns.span = tasks.length; columns.dataset.dataset = datasetId; columnGroups.push(columns);
+    for (const sample of tasks) {
+      const label = sample.task === 'line-recognition' ? 'Cropped lines' : 'Full pages';
+      const cell = heading(sample.id, label, '', `task-header${groupEnds.has(sample.id) ? ' dataset-end' : ''}`,
+        `Sort by ${metric.toUpperCase()}: ${name}, ${label}. ${inputDescription(sample.task)}`);
+      cell.id = `task-${sample.id}`; cell.setAttribute('headers', group.id); taskHead.append(cell);
+    }
+  }
   const table = document.querySelector<HTMLTableElement>('.task-matrix')!;
+  table.querySelectorAll('colgroup[data-dataset]').forEach(group => group.remove());
+  element('matrix-columns').replaceChildren(node('col', '', 'model-column'), node('col', '', 'overall-column'));
+  element('matrix-columns').after(...columnGroups);
+  element('results-head').replaceChildren(head, taskHead);
+  element('results-body').replaceChildren(...visible.map(row => renderRow(row, samples, columns, groupEnds)));
   table.style.minWidth = `calc(var(--model-width) + var(--overall-width) + ${96 * samples.length}px)`;
-  text('table-caption', `${benchmark.name}: ${overallLabel()} and ${metric.toUpperCase()} for each task. Task error rates are percentages; lower is better.`);
-  text('selection-description', `${samples.length} tasks · ${metric.toUpperCase()} (%)`);
+  text('table-caption', `${benchmark.name}: ${overallLabel()} and ${metric.toUpperCase()} for each task, grouped by dataset. Cropped lines and full pages are separate tasks. Task error rates are percentages; lower is better.`);
+  text('selection-description', `${groups.size} datasets · ${samples.length} tasks · ${metric.toUpperCase()} (%)`);
   text('metric-help', `${metric === 'wer' ? 'WER counts word' : 'CER counts character'} substitutions, deletions and insertions relative to the reference text. Lower is better; scores can exceed 100%.`);
   text('aggregation-help', explanations[aggregation]);
   text('visible-models', `${visible.length} model${visible.length === 1 ? '' : 's'}`);
