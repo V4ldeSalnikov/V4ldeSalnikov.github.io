@@ -3,7 +3,7 @@ import { matrixRows, type Aggregation, type MatrixRow } from '../lib/ocr-matrix'
 import { datasetDescriptions } from '../data/ocr-datasets';
 import { benchmarks, inputDescription } from '../data/ocr-benchmarks';
 import { modelOpenness } from '../data/ocr-openness';
-import { overallChecks, score, scoreLabel, opennessAnchor } from '../lib/ocr-openness';
+import { criteria, scoreLabel, statusLabels, opennessAnchor, type Checks } from '../lib/ocr-openness';
 
 const element = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const search = element<HTMLInputElement>('model-search');
@@ -23,6 +23,31 @@ const explanations: Record<Aggregation, string> = {
 function node<K extends keyof HTMLElementTagNameMap>(tag: K, value = '', className = '') {
   const item = document.createElement(tag); item.textContent = value; item.className = className; return item;
 }
+const opennessTooltip = node('div', '', 'openness-tooltip');
+opennessTooltip.id = 'openness-tooltip'; opennessTooltip.role = 'tooltip'; opennessTooltip.hidden = true;
+document.body.append(opennessTooltip);
+let opennessTrigger: HTMLAnchorElement | null = null;
+function hideOpenness() { opennessTooltip.hidden = true; opennessTrigger = null; }
+function showOpenness(trigger: HTMLAnchorElement, checks: Checks) {
+  opennessTrigger = trigger;
+  const list = node('ul');
+  for (const [key, label] of criteria) {
+    const item = node('li'); item.setAttribute('aria-label', `${label}: ${statusLabels[checks[key].status]}`);
+    const marker = node('span', checks[key].status === 'yes' ? '✓' : '—', checks[key].status === 'yes' ? 'available' : '');
+    marker.setAttribute('aria-hidden', 'true'); item.append(node('span', label), marker); list.append(item);
+  }
+  opennessTooltip.replaceChildren(list, node('p', 'Click the score for sources.'));
+  opennessTooltip.hidden = false;
+  const rect = trigger.getBoundingClientRect(), width = opennessTooltip.offsetWidth, height = opennessTooltip.offsetHeight;
+  opennessTooltip.style.left = `${Math.max(8, Math.min(rect.left, innerWidth - width - 8))}px`;
+  opennessTooltip.style.top = `${Math.max(8, rect.bottom + height < innerHeight - 8 ? rect.bottom - 1 : rect.top - height + 1)}px`;
+}
+opennessTooltip.addEventListener('mouseleave', event => {
+  if (!(event.relatedTarget instanceof Node && opennessTrigger?.contains(event.relatedTarget))) hideOpenness();
+});
+window.addEventListener('scroll', hideOpenness, true);
+window.addEventListener('resize', hideOpenness);
+document.addEventListener('keydown', event => { if (event.key === 'Escape') hideOpenness(); });
 function overallLabel() { return aggregation === 'mean' ? `Mean ${metric.toUpperCase()}` : aggregation === 'borda' ? 'Borda rank' : 'Win rate'; }
 function saveSelection(push = false) {
   const params = new URLSearchParams({ benchmark: benchmark.id, metric, aggregation });
@@ -61,14 +86,19 @@ function renderRow(row: MatrixRow, samples: SampleSet[], columns: Record<string,
   const openness = node('td', '', 'openness-cell');
   const profile = modelOpenness[row.model.id];
   if (profile) {
-    const total = scoreLabel(overallChecks(profile)), base = scoreLabel(profile.base.checks), post = scoreLabel(profile.post.checks);
-    const details = node('a'); details.href = `/ocr-eval/openness/#${opennessAnchor(row.model.id)}`;
-    details.title = `Confirmed openness checks: overall ${total}; base ${base}; post-training ${post}. ${score(overallChecks(profile)).unknown} overall checks are unknown. Click for the six checks and sources.`;
-    details.setAttribute('aria-label', `${row.model.name}. ${details.title}`);
-    for (const [label, value] of [['Overall', total], ['Base', base], ['Post-training', post]]) {
-      const line = node('span', '', `openness-line${label === 'Overall' ? ' openness-total' : ''}`);
-      line.append(node('span', label), node('span', value)); details.append(line);
-    }
+    const total = scoreLabel(profile.checks);
+    const details = node('a', total, 'openness-badge'); details.href = `/ocr-eval/openness/#${opennessAnchor(row.model.id)}`;
+    details.setAttribute('aria-label', `${row.model.name}: openness ${total}. View checks and sources.`);
+    details.setAttribute('aria-describedby', opennessTooltip.id);
+    const reveal = () => requestAnimationFrame(() => {
+      if (details.matches(':hover, :focus')) showOpenness(details, profile.checks);
+    });
+    details.addEventListener('mouseenter', reveal);
+    details.addEventListener('focus', reveal);
+    details.addEventListener('blur', hideOpenness);
+    details.addEventListener('mouseleave', event => {
+      if (!(event.relatedTarget instanceof Node && opennessTooltip.contains(event.relatedTarget))) hideOpenness();
+    });
     openness.append(details);
   } else { openness.textContent = 'Unknown'; }
   tr.append(openness);
@@ -93,6 +123,7 @@ function renderRow(row: MatrixRow, samples: SampleSet[], columns: Record<string,
   return tr;
 }
 function render() {
+  hideOpenness();
   const benchmarkSamples = benchmark.sampleIds.map(id => data.sample_sets.find(sample => sample.id === id)!).filter(Boolean);
   const groups = new Map<string, SampleSet[]>();
   for (const sample of benchmarkSamples) {
@@ -118,7 +149,7 @@ function render() {
   const openness = node('th', '', 'openness-cell'); openness.scope = 'col'; openness.rowSpan = 2;
   const opennessLink = node('a', 'Openness', 'openness-heading'); opennessLink.href = '/ocr-eval/openness/';
   opennessLink.title = 'The number of confirmed checks out of six: weights, license, training code, training data, paper and documentation. Click for definitions and sources.';
-  openness.append(opennessLink, node('small', 'Confirmed checks'));
+  openness.append(opennessLink);
   head.append(openness);
   const columnGroups = [];
   for (const [datasetId, tasks] of groups) {

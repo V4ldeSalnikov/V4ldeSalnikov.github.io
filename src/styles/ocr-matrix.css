@@ -22,16 +22,20 @@
 .score-help:hover .score-popover,.score-help:focus-within .score-popover { display:block; }
 .score-help.dismissed .score-popover { display:none; }
 .matrix-scroll { overflow:auto; max-height:72vh; border:1px solid var(--line); border-radius:5px; }
-.task-matrix { --model-width:210px; --overall-width:100px; --openness-width:150px; border-collapse:separate; border-spacing:0; width:100%; table-layout:fixed; font-size:12px; font-variant-numeric:tabular-nums; }
+.task-matrix { --model-width:210px; --overall-width:100px; --openness-width:86px; border-collapse:separate; border-spacing:0; width:100%; table-layout:fixed; font-size:12px; font-variant-numeric:tabular-nums; }
 .task-matrix .model-column { width:var(--model-width); }
 .task-matrix .overall-column { width:var(--overall-width); }
 .task-matrix .openness-column { width:var(--openness-width); }
 .task-matrix .openness-cell { text-align:center; border-right:1px solid var(--line); }
 .task-matrix .openness-heading { color:inherit; text-decoration:underline; text-decoration-color:#c3c3ca; text-underline-offset:3px; }
 .task-matrix .openness-heading:hover { color:var(--red); }
-.task-matrix td.openness-cell { padding:8px 10px; }
-.task-matrix .openness-line { display:flex; justify-content:space-between; gap:8px; color:var(--muted); font-size:11px; white-space:nowrap; line-height:1.5; }
-.task-matrix .openness-total { color:#242427; font-weight:600; font-size:12px; margin-bottom:2px; }
+.task-matrix td>a.openness-badge { display:inline-block; padding:2px 9px; border:1px solid #e1c6cb; border-radius:4px; background:var(--red-soft); color:var(--red); font-weight:600; }
+.openness-tooltip { position:fixed; z-index:20; width:230px; max-width:calc(100vw - 16px); padding:12px 14px; background:white; border:1px solid var(--line); border-radius:5px; box-shadow:0 5px 24px #00000014; font-size:12px; }
+.openness-tooltip ul { list-style:none; padding:0; margin:0; }
+.openness-tooltip li { display:flex; justify-content:space-between; gap:16px; padding:3px 0; }
+.openness-tooltip li>span:last-child { color:var(--muted); }
+.openness-tooltip li>span.available { color:var(--red); font-weight:700; }
+.openness-tooltip p { color:var(--muted); font-size:11px; margin:8px 0 0; }
 .task-matrix th,.task-matrix td { padding:12px 8px; border-bottom:1px solid var(--line); text-align:right; vertical-align:middle; }
 .task-matrix thead { position:sticky; top:0; z-index:3; }
 .task-matrix thead th { background:var(--soft); vertical-align:bottom; font-weight:550; }
