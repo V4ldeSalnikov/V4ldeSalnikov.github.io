@@ -1,0 +1,26 @@
+---
+// Compatibility links for the leaderboard now deployed by the OCR-eval repository.
+export function getStaticPaths() {
+  return [undefined, 'compare', 'datasets', 'methodology', 'openness',
+    'benchmarks/scandinavian', 'benchmarks/danish', 'benchmarks/norwegian', 'benchmarks/swedish']
+    .map(path => ({ params: { path } }));
+}
+const path = Astro.params.path;
+const destination = `https://v4ldesalnikov.github.io/OCR-eval/${path ? `${path}/` : ''}`;
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ScandiOCR has moved</title>
+    <link rel="canonical" href={destination} />
+    <noscript><meta http-equiv="refresh" content={`0;url=${destination}`} /></noscript>
+    <script is:inline define:vars={{ destination }}>
+      window.location.replace(destination + window.location.search + window.location.hash);
+    </script>
+  </head>
+  <body>
+    <p>ScandiOCR has moved to <a href={destination}>its project website</a>.</p>
+  </body>
+</html>
